@@ -669,6 +669,33 @@
   }
   function casaInitials(casa){ return casa ? casa.trim().slice(0,2).toUpperCase() : '—'; }
 
+  const CASA_DOMINIOS = {
+    '4PLAYBET':'4playbet.bet.br','7GAMES':'7games.bet.br','APOSTABET':'apostabet.bet.br','APOSTAGANHA':'apostaganha.bet.br',
+    'BANDBET':'bandbet.bet.br','BET365':'bet365.com','BETANO':'betano.bet.br','BETAO':'betao.bet.br','BETBRA':'betbra.bet.br',
+    'BETFAIR':'betfair.bet.br','BETNACIONAL':'betnacional.bet.br','BETSUL':'betsul.bet.br','BETVIP':'betvip.bet.br',
+    'BLAZE':'blaze.bet.br','BRX':'brx.bet.br','BULLSBET':'bullsbet.bet.br','ESPORTESDASORTE':'esportesdasorte.bet.br',
+    'ESPORTIVABET':'esportivabet.bet.br','ESTRELABET':'estrelabet.bet.br','FULLTBET':'fulltbet.bet.br','GANHEIBET':'ganheibet.bet.br',
+    'HIPERBET':'hiperbet.bet.br','LOTTU':'lottu.bet.br','MAXIMABET':'maximabet.bet.br','MULTIBET':'multibet.bet.br',
+    'NOVIBET':'novibet.bet.br','ONABET':'onabet.bet.br','PAGOL':'pagol.bet.br','PAGOLBET':'pagolbet.bet.br',
+    'PINNACLE':'pinnacle.com','PITACO':'pitaco.bet.br','PIXBET':'pixbet.com','R7':'r7pay.bet.br','RIVALO':'rivalo.bet.br',
+    'SEGUROBET':'segurobet.bet.br','SPORTINGBET':'sportingbet.bet.br','SPORTY':'sporty.bet.br','SPORTYBET':'sportybet.com',
+    'STAKE':'stake.bet.br','SUPERBET':'superbet.bet.br','VAIDEBET':'vaidebet.bet.br','VUPI':'vupi.bet.br'
+  };
+  function casaLogoUrl(casa){
+    if(!casa) return null;
+    const dom = CASA_DOMINIOS[casa.trim().toUpperCase()];
+    return dom ? `https://www.google.com/s2/favicons?domain=${dom}&sz=64` : null;
+  }
+  function casaBadgeHtml(casa, size){
+    const s = size||26;
+    const logo = casaLogoUrl(casa);
+    const fallback = `background:${casaColor(casa)}`;
+    if(!logo) return `<div class="casa-badge" style="${fallback}; width:${s}px; height:${s}px; font-size:${Math.round(s*0.38)}px;">${casaInitials(casa)}</div>`;
+    return `<div class="casa-badge" style="width:${s}px; height:${s}px; padding:${Math.round(s*0.15)}px; background:#fff;">
+      <img src="${logo}" style="width:100%; height:100%; object-fit:contain;" onerror="this.parentElement.outerHTML='<div class=&quot;casa-badge&quot; style=&quot;${fallback}; width:${s}px; height:${s}px; font-size:${Math.round(s*0.38)}px;&quot;>${casaInitials(casa)}</div>'">
+    </div>`;
+  }
+
   function buildGroups(list){
     const months = [];
     list.forEach(op=>{
@@ -764,7 +791,7 @@
         : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
       detailHtml += `<div class="detail-row">
         <span class="detail-num">#1</span>
-        <div class="casa-badge" style="background:${casaColor(op.casa)}; width:22px; height:22px; font-size:9px;">${casaInitials(op.casa)}</div>
+        ${casaBadgeHtml(op.casa, 22)}
         <span class="detail-label">${op.nome || 'Múltipla'} <em>(ticket principal)</em></span>
         <span class="detail-odd">Odd: ${oddCombinada?parseFloat(oddCombinada).toFixed(2):'—'}</span>
         <span class="retorno-val ${mProfit==null?'':(mProfit>=0?'pos-txt':'neg-txt')}">${mProfit==null?'—':fmt(mProfit)}</span>
@@ -779,7 +806,7 @@
           const label = [p.tipo, p.rotulo, p.evento].filter(Boolean).join(' — ');
           detailHtml += `<div class="detail-row">
             <span class="detail-num">#${group.perna_num+1}${idx>0?String.fromCharCode(97+idx):''}</span>
-            <div class="casa-badge" style="background:${casaColor(p.plataforma)}; width:22px; height:22px; font-size:9px;">${casaInitials(p.plataforma)}</div>
+            ${casaBadgeHtml(p.plataforma, 22)}
             <span class="detail-label">${label || '—'}</span>
             <span class="detail-odd">Odd: ${p.odd??'—'}</span>
             <span class="retorno-val ${profit==null?'':(profit>=0?'pos-txt':'neg-txt')}">${profit==null?'—':fmt(profit)}</span>
@@ -794,7 +821,7 @@
     <div class="op-row">
       ${expandBtn}
       <div class="op-time">${dataCurtaOf(op.data_operacao)}<br>${horaOf(op)}</div>
-      <div class="casa-badge" style="background:${casaColor(op.casa)}">${casaInitials(op.casa)}</div>
+      ${casaBadgeHtml(op.casa, 26)}
       <div class="casa-name">${op.casa || 'Sem casa'}</div>
       <div class="op-nome">${op.nome || '—'}</div>
       <div class="op-result">
@@ -880,196 +907,238 @@
 
   function openEditModal(op){
     const body = $('editModalBody');
-    const pernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas : null;
+    let workingPernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas.map(p=>({...p})) : null;
 
-    let html = `<div class="filter-row" style="margin-bottom:16px;">
-      <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
-      <div class="field"><label>Casa da múltipla</label><select class="mini-input wide" id="em_casa">${casaOptionsHtml(op.casa)}</select></div>
-      <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
-      <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
-    </div>`;
-
-    if(pernas && pernas.length){
-      const oddCombinada = pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
-      const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
-      const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
-      html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
-      <div class="perna-card" style="border-color:var(--blue);">
-        <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
-        <div class="perna-row" style="border-top:none;">
-          <div class="perna-rotulo">Múltipla combinada <span class="acao-tag back" style="background:rgba(91,157,255,0.15); color:var(--blue);">TICKET</span></div>
-          <div class="field"><label>Odd combinada</label><input type="number" step="0.01" class="mini-input" id="mult_odd" value="${oddCombinada.toFixed(2)}"></div>
-          <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="mult_stake" value="${op.investimento??''}" disabled></div>
-          <div class="field"><label>Status final</label>
-            <select class="mini-input" id="mult_status">
-              <option value="pendente" ${multStatus==='pendente'?'selected':''}>Pendente</option>
-              <option value="ganha" ${multStatus==='ganha'?'selected':''}>✓ Ganha (bateu tudo)</option>
-              <option value="perdida" ${multStatus==='perdida'?'selected':''}>✕ Perdida</option>
-            </select>
-          </div>
-          <div class="field"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
-        </div>
-        <div class="perna-row">
-          <label style="display:flex; align-items:center; gap:7px; margin:0; font-size:12.5px; color:var(--text); cursor:pointer;">
-            <input type="checkbox" id="mult_freebet" ${multFreebet?'checked':''} style="width:15px; height:15px;">
-            🎁 Essa múltipla é uma extração de freebet
-          </label>
-          <span style="font-size:11px; color:var(--muted);">marcado: se perder, não conta como prejuízo (não era dinheiro real)</span>
-        </div>
-      </div>`;
-      pernaGroups(pernas).forEach(group=>{
-        const evento = group.items[0].evento || '—';
-        const selMultipla = group.items[0].selecao_multipla || '';
-        html += `<div class="perna-card">
-          <div class="perna-head">
-            <span>Perna ${group.perna_num}${selMultipla ? ' — '+selMultipla : ''}</span>
-            <span class="op-nome" style="max-width:260px;">${evento}</span>
-          </div>`;
+    function syncFormIntoWorking(){
+      if(!workingPernas) return;
+      pernaGroups(workingPernas).forEach(group=>{
         group.items.forEach((p, idx)=>{
           const key = `${group.perna_num}_${idx}`;
-          const acaoTag = p.acao==='lay'
-            ? `<span class="acao-tag lay">LAY</span>`
-            : `<span class="acao-tag back">BACK</span>`;
-          const comissaoInfo = (p.acao==='lay' && p.comissao!=null)
-            ? `<span style="color:var(--muted); font-weight:500; font-size:11px;">comissão ${p.comissao}% (já embutida no cálculo)</span>`
-            : '';
-          html += `<div class="perna-row">
-            <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag} ${comissaoInfo}</div>
-            <div class="field"><label>Tipo de mercado</label><input type="text" class="mini-input" id="tp_${key}" placeholder="Empate, Gols, Vitória..." value="${p.tipo||''}"></div>
-            <div class="field"><label>Plataforma</label><select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select></div>
-            <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
-            <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
+          const rotEl = document.getElementById(`rot_${key}`);
+          const pfEl = document.getElementById(`pf_${key}`);
+          const oddEl = document.getElementById(`odd_${key}`);
+          const stkEl = document.getElementById(`stk_${key}`);
+          const stfEl = document.getElementById(`stf_${key}`);
+          if(rotEl) p.rotulo = rotEl.value || null;
+          if(pfEl) p.plataforma = pfEl.value || null;
+          if(oddEl) p.odd = oddEl.value==='' ? null : parseFloat(oddEl.value);
+          if(stkEl) p.stake = stkEl.value==='' ? null : parseFloat(stkEl.value);
+          if(stfEl) p.status_final = stfEl.value;
+        });
+      });
+    }
+
+    function render(){
+      let html = `<div class="filter-row" style="margin-bottom:16px;">
+        <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
+        <div class="field"><label>Casa da múltipla</label><select class="mini-input wide" id="em_casa">${casaOptionsHtml(op.casa)}</select></div>
+        <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
+        <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
+      </div>`;
+
+      if(workingPernas && workingPernas.length){
+        const oddCombinada = pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
+        const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
+        const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
+        html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
+        <div class="perna-card" style="border-color:var(--blue);">
+          <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
+          <div class="perna-row" style="border-top:none;">
+            <div class="perna-rotulo">Múltipla combinada <span class="acao-tag back" style="background:rgba(91,157,255,0.15); color:var(--blue);">TICKET</span></div>
+            <div class="field"><label>Odd combinada</label><input type="number" step="0.01" class="mini-input" id="mult_odd" value="${oddCombinada.toFixed(2)}"></div>
+            <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="mult_stake" value="${op.investimento??''}" disabled></div>
             <div class="field"><label>Status final</label>
-              <select class="mini-input" id="stf_${key}">
-                <option value="pendente" ${p.status_final==='pendente'?'selected':''}>Pendente</option>
-                <option value="ganha" ${p.status_final==='ganha'?'selected':''}>✓ Ganha</option>
-                <option value="perdida" ${p.status_final==='perdida'?'selected':''}>✕ Perdida</option>
+              <select class="mini-input" id="mult_status">
+                <option value="pendente" ${multStatus==='pendente'?'selected':''}>Pendente</option>
+                <option value="ganha" ${multStatus==='ganha'?'selected':''}>✓ Ganha (bateu tudo)</option>
+                <option value="perdida" ${multStatus==='perdida'?'selected':''}>✕ Perdida</option>
               </select>
             </div>
-            <div class="field"><label>Resultado</label><span class="retorno-val" id="res_${key}">—</span></div>
-          </div>`;
-        });
-        html += `</div>`;
-      });
-      html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
-          <span class="retorno-val" id="res_total" style="font-size:15px;">—</span>
-        </div>
-      </div>`;
-    } else {
-      html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem — só os campos resumidos acima estão disponíveis.</div>`;
-    }
-
-    html += `<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
-      <button class="btn btn-ghost" id="em_cancel">Cancelar edição</button>
-      <button class="btn btn-blue" id="em_save">Atualizar operação</button>
-    </div>`;
-
-    body.innerHTML = html;
-    $('editModal').classList.add('open');
-    $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
-
-    function recalcPernas(){
-      if(!pernas || !pernas.length) return;
-      let total = 0, allResolved = true;
-
-      const mStake = parseFloat($('mult_stake').value);
-      const mOdd = parseFloat($('mult_odd').value);
-      const mStatus = $('mult_status').value;
-      const mFreebet = $('mult_freebet').checked;
-      let mProfit = (mStatus==='perdida' && mFreebet) ? 0 : pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus, 'back', null);
-      const mResEl = $('res_mult');
-      if(mProfit==null){ mResEl.textContent = mStatus==='pendente' ? '—' : 'faltam dados'; mResEl.className = 'retorno-val'; }
-      else { mResEl.textContent = fmt(mProfit); mResEl.className = 'retorno-val ' + (mProfit>=0?'pos-txt':'neg-txt'); }
-      if(mStatus==='pendente') allResolved = false;
-      total += (mProfit||0);
-
-      pernaGroups(pernas).forEach(group=>{
-        group.items.forEach((p, idx)=>{
-          const key = `${group.perna_num}_${idx}`;
-          const stake = parseFloat(document.getElementById(`stk_${key}`).value);
-          const odd = parseFloat(document.getElementById(`odd_${key}`).value);
-          const status = document.getElementById(`stf_${key}`).value;
-          const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, p.acao, p.comissao);
-          const resEl = document.getElementById(`res_${key}`);
-          if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
-          else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
-          if(status==='pendente') allResolved = false;
-          total += (profit||0);
-        });
-      });
-      const totalEl = $('res_total');
-      totalEl.textContent = fmt(total);
-      totalEl.className = 'retorno-val ' + (total>=0?'pos-txt':'neg-txt');
-      totalEl.dataset.allResolved = allResolved ? '1' : '0';
-      totalEl.dataset.total = total;
-    }
-
-    if(pernas && pernas.length){
-      $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
-      ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
-        $(id).addEventListener('input', recalcPernas);
-        $(id).addEventListener('change', recalcPernas);
-      });
-      pernaGroups(pernas).forEach(group=>{
-        group.items.forEach((p, idx)=>{
-          const key = `${group.perna_num}_${idx}`;
-          ['odd_'+key, 'stk_'+key, 'stf_'+key].forEach(id=>{
-            document.getElementById(id).addEventListener('input', recalcPernas);
-            document.getElementById(id).addEventListener('change', recalcPernas);
-          });
-        });
-      });
-      recalcPernas();
-    }
-
-    $('em_save').onclick = async ()=>{
-      const numOrNull = id => { const el = document.getElementById(id); if(!el||el.value==='') return null; return parseFloat(el.value); };
-      const txtOrNull = id => { const el = document.getElementById(id); return el ? (el.value||null) : null; };
-
-      let detalhe = op.detalhe || {};
-      const payload = {
-        data_operacao: txtOrNull('em_data'),
-        casa: txtOrNull('em_casa'),
-        nome: txtOrNull('em_nome'),
-        investimento: numOrNull('em_invest'),
-      };
-
-      if(pernas && pernas.length){
-        const groups = pernaGroups(pernas);
-        const updatedPernas = [];
-        groups.forEach(group=>{
+            <div class="field"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
+          </div>
+          <div class="perna-row">
+            <label style="display:flex; align-items:center; gap:7px; margin:0; font-size:12.5px; color:var(--text); cursor:pointer;">
+              <input type="checkbox" id="mult_freebet" ${multFreebet?'checked':''} style="width:15px; height:15px;">
+              🎁 Freebet
+            </label>
+          </div>
+        </div>`;
+        pernaGroups(workingPernas).forEach(group=>{
+          const evento = group.items[0].evento || '—';
+          const selMultipla = group.items[0].selecao_multipla || '';
+          html += `<div class="perna-card">
+            <div class="perna-head">
+              <span>Perna ${group.perna_num}${selMultipla ? ' — '+selMultipla : ''}</span>
+              <span class="op-nome" style="max-width:260px;">${evento}</span>
+            </div>`;
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
-            updatedPernas.push({
-              ...p,
-              tipo: txtOrNull(`tp_${key}`),
-              plataforma: txtOrNull(`pf_${key}`),
-              odd: numOrNull(`odd_${key}`),
-              stake: numOrNull(`stk_${key}`),
-              status_final: document.getElementById(`stf_${key}`).value
+            const acaoTag = p.acao==='lay'
+              ? `<span class="acao-tag lay">LAY</span>`
+              : `<span class="acao-tag back">BACK</span>`;
+            const comissaoInfo = (p.acao==='lay' && p.comissao!=null)
+              ? `<span style="color:var(--muted); font-weight:500; font-size:11px;">comissão ${p.comissao}% (já embutida no cálculo)</span>`
+              : '';
+            html += `<div class="perna-row">
+              <div class="perna-rotulo">
+                <input type="text" class="mini-input" style="width:180px; font-weight:600;" id="rot_${key}" value="${p.rotulo||''}">
+                ${acaoTag} ${comissaoInfo}
+                <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
+              </div>
+              <div class="field"><label>Plataforma</label><select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select></div>
+              <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
+              <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
+              <div class="field"><label>Status final</label>
+                <select class="mini-input" id="stf_${key}">
+                  <option value="pendente" ${p.status_final==='pendente'?'selected':''}>Pendente</option>
+                  <option value="ganha" ${p.status_final==='ganha'?'selected':''}>✓ Ganha</option>
+                  <option value="perdida" ${p.status_final==='perdida'?'selected':''}>✕ Perdida</option>
+                </select>
+              </div>
+              <div class="field"><label>Resultado</label><span class="retorno-val" id="res_${key}">—</span></div>
+            </div>`;
+          });
+          html += `</div>`;
+        });
+        html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
+            <span class="retorno-val" id="res_total" style="font-size:15px;">—</span>
+          </div>
+        </div>`;
+      } else {
+        html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem — só os campos resumidos acima estão disponíveis.</div>`;
+      }
+
+      html += `<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button class="btn btn-ghost" id="em_cancel">Cancelar edição</button>
+        <button class="btn btn-blue" id="em_save">Atualizar operação</button>
+      </div>`;
+
+      body.innerHTML = html;
+      $('editModal').classList.add('open');
+      $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
+
+      function recalcPernas(){
+        if(!workingPernas || !workingPernas.length) return;
+        let total = 0, allResolved = true;
+
+        const mStake = parseFloat($('mult_stake').value);
+        const mOdd = parseFloat($('mult_odd').value);
+        const mStatus = $('mult_status').value;
+        const mFreebet = $('mult_freebet').checked;
+        let mProfit = (mStatus==='perdida' && mFreebet) ? 0 : pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus, 'back', null);
+        const mResEl = $('res_mult');
+        if(mProfit==null){ mResEl.textContent = mStatus==='pendente' ? '—' : 'faltam dados'; mResEl.className = 'retorno-val'; }
+        else { mResEl.textContent = fmt(mProfit); mResEl.className = 'retorno-val ' + (mProfit>=0?'pos-txt':'neg-txt'); }
+        if(mStatus==='pendente') allResolved = false;
+        total += (mProfit||0);
+
+        pernaGroups(workingPernas).forEach(group=>{
+          group.items.forEach((p, idx)=>{
+            const key = `${group.perna_num}_${idx}`;
+            const stake = parseFloat(document.getElementById(`stk_${key}`).value);
+            const odd = parseFloat(document.getElementById(`odd_${key}`).value);
+            const status = document.getElementById(`stf_${key}`).value;
+            const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, p.acao, p.comissao);
+            const resEl = document.getElementById(`res_${key}`);
+            if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
+            else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
+            if(status==='pendente') allResolved = false;
+            total += (profit||0);
+          });
+        });
+        const totalEl = $('res_total');
+        totalEl.textContent = fmt(total);
+        totalEl.className = 'retorno-val ' + (total>=0?'pos-txt':'neg-txt');
+        totalEl.dataset.allResolved = allResolved ? '1' : '0';
+        totalEl.dataset.total = total;
+      }
+
+      if(workingPernas && workingPernas.length){
+        $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
+        ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
+          $(id).addEventListener('input', recalcPernas);
+          $(id).addEventListener('change', recalcPernas);
+        });
+        pernaGroups(workingPernas).forEach(group=>{
+          group.items.forEach((p, idx)=>{
+            const key = `${group.perna_num}_${idx}`;
+            ['odd_'+key, 'stk_'+key, 'stf_'+key].forEach(id=>{
+              document.getElementById(id).addEventListener('input', recalcPernas);
+              document.getElementById(id).addEventListener('change', recalcPernas);
             });
           });
         });
-        detalhe = {
-          ...detalhe,
-          pernas: updatedPernas,
-          multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value, freebet: document.getElementById('mult_freebet').checked }
-        };
-        payload.detalhe = detalhe;
+        recalcPernas();
 
-        const totalEl = $('res_total');
-        if(totalEl.dataset.allResolved === '1'){
-          payload.lucro_real = parseFloat(totalEl.dataset.total);
-          payload.status = 'resolvida';
-        }
+        body.querySelectorAll('[data-rmperna-num]').forEach(btn=>{
+          btn.onclick = ()=>{
+            if(!confirm('Excluir essa perna?')) return;
+            syncFormIntoWorking();
+            const num = parseFloat(btn.dataset.rmpernaNum);
+            const sub = btn.dataset.rmpernaSub;
+            workingPernas = workingPernas.filter(p => !(p.perna_num===num && (p.sub||'')===sub));
+            render();
+          };
+        });
       }
 
-      const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
-      if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
-      else alert('Erro ao salvar: ' + error.message);
-    };
+      $('em_save').onclick = async ()=>{
+        const numOrNull = id => { const el = document.getElementById(id); if(!el||el.value==='') return null; return parseFloat(el.value); };
+        const txtOrNull = id => { const el = document.getElementById(id); return el ? (el.value||null) : null; };
+
+        let detalhe = op.detalhe || {};
+        const payload = {
+          data_operacao: txtOrNull('em_data'),
+          casa: txtOrNull('em_casa'),
+          nome: txtOrNull('em_nome'),
+          investimento: numOrNull('em_invest'),
+        };
+
+        if(workingPernas && workingPernas.length){
+          const groups = pernaGroups(workingPernas);
+          const updatedPernas = [];
+          groups.forEach(group=>{
+            group.items.forEach((p, idx)=>{
+              const key = `${group.perna_num}_${idx}`;
+              updatedPernas.push({
+                ...p,
+                rotulo: txtOrNull(`rot_${key}`),
+                plataforma: txtOrNull(`pf_${key}`),
+                odd: numOrNull(`odd_${key}`),
+                stake: numOrNull(`stk_${key}`),
+                status_final: document.getElementById(`stf_${key}`).value
+              });
+            });
+          });
+          detalhe = {
+            ...detalhe,
+            pernas: updatedPernas,
+            multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value, freebet: document.getElementById('mult_freebet').checked }
+          };
+          payload.detalhe = detalhe;
+
+          const totalEl = $('res_total');
+          if(totalEl.dataset.allResolved === '1'){
+            payload.lucro_real = parseFloat(totalEl.dataset.total);
+            payload.status = 'resolvida';
+          } else {
+            payload.lucro_real = null;
+            payload.status = 'pendente';
+          }
+        } else if(workingPernas && workingPernas.length===0){
+          // todas as pernas foram excluídas — mantém detalhe sem pernas, mas preserva múltipla se existia
+          payload.detalhe = { ...detalhe, pernas: [] };
+        }
+
+        const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
+        if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
+        else alert('Erro ao salvar: ' + error.message);
+      };
+    }
+
+    render();
   }
 
   $('fPeriodo').addEventListener('change', ()=>{
