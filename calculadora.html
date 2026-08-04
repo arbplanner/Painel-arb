@@ -104,12 +104,6 @@
     background:var(--panel-2); border:1px solid var(--line); border-radius:7px;
     color:var(--text); padding:8px 10px; font-size:13px; font-family:'Inter';
   }
-  .freebet-stake-btn{
-    background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
-    font-size:11px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer; white-space:nowrap;
-  }
-  .freebet-stake-btn.active{background:var(--amber-dim); border-color:var(--amber); color:var(--amber);}
-  .freebet-stake-btn:hover{filter:brightness(1.15);}
 
   .freebet-box{
     display:none;
@@ -277,11 +271,8 @@
       <div class="panel-title"><span class="dot"></span> Aposta principal</div>
       <div class="config-bar">
         <div class="field">
-          <label id="investmentLabel">Investimento (múltipla)</label>
-          <div style="display:flex; gap:6px; align-items:center;">
-            <input type="number" id="investment" value="150" step="1" min="0" style="width:90px;">
-            <button type="button" id="stakeIsFreebet" class="freebet-stake-btn" title="Marque se essa aposta está sendo feita usando uma freebet já em mãos (o stake não é devolvido, só o lucro)">🎁 É freebet</button>
-          </div>
+          <label>Investimento (múltipla)</label>
+          <input type="number" id="investment" value="" step="1" min="0" placeholder="0">
         </div>
         <div class="field">
           <label>Casa da múltipla</label>
@@ -312,7 +303,7 @@
       <div class="freebet-box" id="freebetBox">
         <div class="field">
           <label>Valor nominal da freebet</label>
-          <input type="number" id="freebetNominal" value="150" step="1" min="0">
+          <input type="number" id="freebetNominal" value="" step="1" min="0" placeholder="0">
         </div>
         <div class="field">
           <label>% de extração alvo</label>
@@ -573,10 +564,6 @@
     const freebetNominal = parseFloat($('freebetNominal').value)||0;
     const freebetTargetPct = (parseFloat($('freebetTarget').value)||0)/100;
     const freebetValue = freebetOn ? freebetNominal*freebetTargetPct : 0;
-    // se o investimento em si é uma freebet (extração), o stake não é dinheiro real perdido
-    // se a múltipla falhar — então não entra como custo afundado nas coberturas
-    const stakeIsFreebet = $('stakeIsFreebet').classList.contains('active');
-    const sunkStake = stakeIsFreebet ? 0 : S;
 
     const legs = state.etapas;
     const oddMultipla = legs.reduce((a,l)=>a*(l.mainOdd||0),1);
@@ -594,7 +581,7 @@
     // Solve equalized target profit P via binary search:
     // profitWin(P) must equal P, where T_i derived sequentially from P.
     function solveForP(P){
-      let cumulative = sunkStake;
+      let cumulative = S;
       const Ts = [];
       for(let i=0;i<info.length;i++){
         const inf = info[i];
@@ -655,7 +642,7 @@
     });
 
     // recompute stake splits per etapa + scenario profits
-    let cumulative = sunkStake;
+    let cumulative = S;
     const detail = [];
     let worst = Infinity;
     legs.forEach((l,i)=>{
@@ -885,7 +872,7 @@
       investimento_total: r.totalInvestido,
       freebet_usada: freebetOn,
       status: 'pendente',
-      detalhe: { etapas: state.etapas, slider: $('balanceSlider').value, pernas, stake_e_freebet: $('stakeIsFreebet').classList.contains('active') }
+      detalhe: { etapas: state.etapas, slider: $('balanceSlider').value, pernas }
     };
     statusEl.textContent = 'Enviando...';
     statusEl.style.color = 'var(--muted)';
@@ -908,13 +895,6 @@
 
   // Wiring -----------------------------------------------------
   $('numLegs').onchange = e=> { initEtapas(parseInt(e.target.value)); compute(); };
-  $('stakeIsFreebet').onclick = ()=>{
-    const btn = $('stakeIsFreebet');
-    btn.classList.toggle('active');
-    const active = btn.classList.contains('active');
-    $('investmentLabel').textContent = active ? 'Valor da freebet' : 'Investimento (múltipla)';
-    compute();
-  };
   $('investment').oninput = compute;
   $('commission').oninput = compute;
   $('arredondar').onchange = compute;
@@ -941,8 +921,6 @@
     $('strategyName').value = '';
     $('investment').value = '';
     $('casaMultipla').value = '';
-    $('stakeIsFreebet').classList.remove('active');
-    $('investmentLabel').textContent = 'Investimento (múltipla)';
     $('numLegs').value = '2';
     $('commission').value = 0;
     $('arredondar').checked = true;
