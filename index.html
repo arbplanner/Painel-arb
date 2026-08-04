@@ -165,7 +165,19 @@
     display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid rgba(35,42,55,0.6);
   }
   .op-row:last-child{border-bottom:none;}
-  .op-time{width:44px; color:var(--muted); font-size:12px; font-family:'JetBrains Mono';}
+  .op-time{width:56px; color:var(--muted); font-size:10.5px; font-family:'JetBrains Mono'; line-height:1.5;}
+
+  .op-row-wrap{}
+  .op-detail{
+    margin:0 0 9px 40px; padding:8px 12px; background:rgba(255,255,255,0.02);
+    border-left:2px solid var(--line); border-radius:0 6px 6px 0;
+  }
+  .detail-row{display:flex; align-items:center; gap:10px; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(35,42,55,0.5);}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-num{width:26px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; flex-shrink:0;}
+  .detail-label{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .detail-label em{color:var(--muted); font-style:normal; font-size:11px;}
+  .detail-odd{width:80px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11.5px; flex-shrink:0;}
   .casa-badge{width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center;
     font-size:10px; font-weight:700; color:#0a0d12; flex-shrink:0;}
   .casa-name{width:120px; font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -722,6 +734,8 @@
     bindGroupEvents(wrap);
   }
 
+  const expandedOps = new Set();
+
   function renderOpRow(op){
     let statusBadge, retornoTxt, retornoClass;
     if(op.status==='resolvida' && op.lucro_real!=null && op.lucro_real>=0){
@@ -734,8 +748,52 @@
       statusBadge = `<span class="status-badge pend">${ICON_PEND} PEND.</span>`;
       retornoTxt = '—'; retornoClass = '';
     }
-    return `<div class="op-row">
-      <div class="op-time">${horaOf(op)}</div>
+    const pernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas : null;
+    const isOpen = expandedOps.has(String(op.id));
+    const expandBtn = pernas && pernas.length
+      ? `<button class="icon-sq-btn" data-exptoggle="${op.id}" title="Ver pernas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(${isOpen?90:0}deg); transition:transform .15s;"><path d="M9 6l6 6-6 6"/></svg></button>`
+      : `<span style="width:28px; display:inline-block;"></span>`;
+
+    let detailHtml = '';
+    if(isOpen && pernas && pernas.length){
+      const mult = (op.detalhe && op.detalhe.multipla) || {};
+      const oddCombinada = mult.odd!=null ? mult.odd : pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
+      const mProfit = (mult.status_final==='perdida' && mult.freebet) ? 0 : pernaProfit(op.investimento, oddCombinada, mult.status_final, 'back', null);
+      const mTag = mult.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
+        : mult.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
+        : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
+      detailHtml += `<div class="detail-row">
+        <span class="detail-num">#1</span>
+        <div class="casa-badge" style="background:${casaColor(op.casa)}; width:22px; height:22px; font-size:9px;">${casaInitials(op.casa)}</div>
+        <span class="detail-label">${op.nome || 'Múltipla'} <em>(ticket principal)</em></span>
+        <span class="detail-odd">Odd: ${oddCombinada?parseFloat(oddCombinada).toFixed(2):'—'}</span>
+        <span class="retorno-val ${mProfit==null?'':(mProfit>=0?'pos-txt':'neg-txt')}">${mProfit==null?'—':fmt(mProfit)}</span>
+        ${mTag}
+      </div>`;
+      pernaGroups(pernas).forEach(group=>{
+        group.items.forEach((p, idx)=>{
+          const profit = pernaProfit(p.stake, p.odd, p.status_final, p.acao, p.comissao);
+          const tag = p.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
+            : p.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
+            : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
+          const label = [p.tipo, p.rotulo, p.evento].filter(Boolean).join(' — ');
+          detailHtml += `<div class="detail-row">
+            <span class="detail-num">#${group.perna_num+1}${idx>0?String.fromCharCode(97+idx):''}</span>
+            <div class="casa-badge" style="background:${casaColor(p.plataforma)}; width:22px; height:22px; font-size:9px;">${casaInitials(p.plataforma)}</div>
+            <span class="detail-label">${label || '—'}</span>
+            <span class="detail-odd">Odd: ${p.odd??'—'}</span>
+            <span class="retorno-val ${profit==null?'':(profit>=0?'pos-txt':'neg-txt')}">${profit==null?'—':fmt(profit)}</span>
+            ${tag}
+          </div>`;
+        });
+      });
+      detailHtml = `<div class="op-detail">${detailHtml}</div>`;
+    }
+
+    return `<div class="op-row-wrap">
+    <div class="op-row">
+      ${expandBtn}
+      <div class="op-time">${dataCurtaOf(op.data_operacao)}<br>${horaOf(op)}</div>
       <div class="casa-badge" style="background:${casaColor(op.casa)}">${casaInitials(op.casa)}</div>
       <div class="casa-name">${op.casa || 'Sem casa'}</div>
       <div class="op-nome">${op.nome || '—'}</div>
@@ -747,6 +805,8 @@
         <button class="icon-sq-btn" data-editbtn="${op.id}" title="Editar">${ICON_EDIT}</button>
         <button class="icon-sq-btn danger" data-delbtn="${op.id}" title="Apagar">${ICON_TRASH}</button>
       </div>
+    </div>
+    ${detailHtml}
     </div>`;
   }
 
@@ -755,6 +815,14 @@
       h.onclick = ()=>{
         const key = h.dataset.monthtoggle;
         if(openMonths.has(key)) openMonths.delete(key); else openMonths.add(key);
+        renderGrouped();
+      };
+    });
+
+    wrap.querySelectorAll('[data-exptoggle]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const id = String(btn.dataset.exptoggle);
+        if(expandedOps.has(id)) expandedOps.delete(id); else expandedOps.add(id);
         renderGrouped();
       };
     });
@@ -786,6 +854,28 @@
       byLeg[k].push(p);
     });
     return order.map(k=>({perna_num:k, items:byLeg[k]}));
+  }
+
+  function pernaProfit(stake, odd, status, acao, comissaoPct){
+    if(stake==null || isNaN(stake)) return null;
+    const isLay = acao==='lay';
+    const commission = (comissaoPct!=null && !isNaN(comissaoPct)) ? comissaoPct/100 : 0;
+    if(isLay){
+      // lay: "ganha" = essa aposta lay que você fez GANHOU -> recebe o valor arriscado, descontada a comissão da exchange
+      //      "perdida" = essa aposta lay PERDEU -> paga a liability (stake*(odd-1))
+      if(status==='ganha') return stake*(1-commission);
+      if(status==='perdida'){ if(odd==null||isNaN(odd)) return null; return -(stake*(odd-1)); }
+      return null;
+    }
+    if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return stake*(odd-1); }
+    if(status==='perdida') return -stake;
+    return null;
+  }
+
+  function dataCurtaOf(dateStr){
+    if(!dateStr) return '—';
+    const [y,m,d] = dateStr.split('-');
+    return `${d}/${m}/${y.slice(2)}`;
   }
 
   function openEditModal(op){
@@ -845,6 +935,7 @@
             : '';
           html += `<div class="perna-row">
             <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag} ${comissaoInfo}</div>
+            <div class="field"><label>Tipo de mercado</label><input type="text" class="mini-input" id="tp_${key}" placeholder="Empate, Gols, Vitória..." value="${p.tipo||''}"></div>
             <div class="field"><label>Plataforma</label><select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select></div>
             <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
             <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
@@ -878,22 +969,6 @@
     body.innerHTML = html;
     $('editModal').classList.add('open');
     $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
-
-    function pernaProfit(stake, odd, status, acao, comissaoPct){
-      if(stake==null || isNaN(stake)) return null;
-      const isLay = acao==='lay';
-      const commission = (comissaoPct!=null && !isNaN(comissaoPct)) ? comissaoPct/100 : 0;
-      if(isLay){
-        // lay: "ganha" = essa aposta lay que você fez GANHOU -> recebe o valor arriscado, descontada a comissão da exchange
-        //      "perdida" = essa aposta lay PERDEU -> paga a liability (stake*(odd-1))
-        if(status==='ganha') return stake*(1-commission);
-        if(status==='perdida'){ if(odd==null||isNaN(odd)) return null; return -(stake*(odd-1)); }
-        return null;
-      }
-      if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return stake*(odd-1); }
-      if(status==='perdida') return -stake;
-      return null;
-    }
 
     function recalcPernas(){
       if(!pernas || !pernas.length) return;
@@ -969,6 +1044,7 @@
             const key = `${group.perna_num}_${idx}`;
             updatedPernas.push({
               ...p,
+              tipo: txtOrNull(`tp_${key}`),
               plataforma: txtOrNull(`pf_${key}`),
               odd: numOrNull(`odd_${key}`),
               stake: numOrNull(`stk_${key}`),
