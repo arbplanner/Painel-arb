@@ -812,8 +812,17 @@
     $('editModal').classList.add('open');
     $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
 
-    function pernaProfit(stake, odd, status){
+    function pernaProfit(stake, odd, status, acao, comissaoPct){
       if(stake==null || isNaN(stake)) return null;
+      const isLay = acao==='lay';
+      const commission = (comissaoPct!=null && !isNaN(comissaoPct)) ? comissaoPct/100 : 0;
+      if(isLay){
+        // lay: "ganha" = a seleção principal aconteceu -> quem apostou contra (lay) PERDE o risco (stake*(odd-1))
+        //      "perdida" = a seleção não aconteceu -> lay GANHA o valor arriscado, descontada a comissão da exchange
+        if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return -(stake*(odd-1)); }
+        if(status==='perdida') return stake*(1-commission);
+        return null;
+      }
       if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return stake*(odd-1); }
       if(status==='perdida') return -stake;
       return null;
@@ -826,7 +835,7 @@
       const mStake = parseFloat($('mult_stake').value);
       const mOdd = parseFloat($('mult_odd').value);
       const mStatus = $('mult_status').value;
-      const mProfit = pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus);
+      const mProfit = pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus, 'back', null);
       const mResEl = $('res_mult');
       if(mProfit==null){ mResEl.textContent = mStatus==='pendente' ? '—' : 'faltam dados'; mResEl.className = 'retorno-val'; }
       else { mResEl.textContent = fmt(mProfit); mResEl.className = 'retorno-val ' + (mProfit>=0?'pos-txt':'neg-txt'); }
@@ -839,7 +848,7 @@
           const stake = parseFloat(document.getElementById(`stk_${key}`).value);
           const odd = parseFloat(document.getElementById(`odd_${key}`).value);
           const status = document.getElementById(`stf_${key}`).value;
-          const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status);
+          const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, p.acao, p.comissao);
           const resEl = document.getElementById(`res_${key}`);
           if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
           else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
