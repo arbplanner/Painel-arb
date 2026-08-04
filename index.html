@@ -55,6 +55,24 @@
 
   .main{flex:1; min-width:0;}
 
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(5,7,10,0.72); display:none;
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{width:460px; max-width:100%;}
+  .modal-box.wide{width:680px; max-height:86vh; overflow-y:auto;}
+
+  .perna-card{border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; background:var(--panel-2);}
+  .perna-head{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px;}
+  .perna-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:8px 0; border-top:1px solid var(--line);}
+  .perna-row:first-of-type{border-top:none;}
+  .perna-rotulo{width:100%; font-size:12px; color:var(--text); font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:2px;}
+  .perna-row .field{flex:1; min-width:110px;}
+  .acao-tag{font-size:9.5px; padding:1px 7px; border-radius:20px; font-weight:700; letter-spacing:.03em;}
+  .acao-tag.back{background:var(--green-dim); color:var(--green);}
+  .acao-tag.lay{background:rgba(91,157,255,0.15); color:var(--blue);}
+
   header{
     padding:28px 32px 20px; display:flex; align-items:baseline; justify-content:space-between;
     flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--line);
@@ -212,6 +230,11 @@
   </div>
 
   <div class="side-group">Configuração</div>
+  <div class="side-item" id="sideConnBtn" style="cursor:pointer;">
+    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span>
+    Conexão
+    <span class="side-tag" id="connDotTag" style="background:var(--red-dim); color:var(--red); border-color:var(--red);">offline</span>
+  </div>
   <div class="side-item soon">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3"/><path d="M12 18v3"/><path d="M3 12h3"/><path d="M18 12h3"/></svg></span>
     Casas de Apostas
@@ -224,18 +247,13 @@
   </div>
 </aside>
 
-<div class="main">
-<header>
-  <div class="brand">
-    <span class="mark">DUPLO GREEN — PAINEL</span>
-    <span class="sub">acompanhamento de lucro das operações</span>
-  </div>
-</header>
-
-<div class="wrap">
-  <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-title"><span class="left"><span class="dot"></span> Conexão com o Supabase</span></div>
-    <div class="conn-row">
+<div class="modal-overlay" id="connModal">
+  <div class="panel modal-box">
+    <div class="panel-title">
+      <span class="left"><span class="dot"></span> Conexão com o Supabase</span>
+      <button class="icon-sq-btn" id="connModalClose" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div class="conn-row" style="flex-direction:column; align-items:stretch;">
       <div class="field">
         <label>Project URL</label>
         <input type="text" id="supaUrl" placeholder="https://xxxx.supabase.co">
@@ -248,7 +266,27 @@
     </div>
     <div id="connStatus" style="font-size:11.5px; color:var(--muted); margin-top:8px;"></div>
   </div>
+</div>
 
+<div class="modal-overlay" id="editModal">
+  <div class="panel modal-box wide">
+    <div class="panel-title">
+      <span class="left"><span class="dot"></span> Editar operação</span>
+      <button class="icon-sq-btn" id="editModalCloseX" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div id="editModalBody"></div>
+  </div>
+</div>
+
+<div class="main">
+<header>
+  <div class="brand">
+    <span class="mark">DUPLO GREEN — PAINEL</span>
+    <span class="sub">acompanhamento de lucro das operações</span>
+  </div>
+</header>
+
+<div class="wrap">
   <div class="cards">
     <div class="card">
       <div class="label">Lucro de hoje</div>
@@ -289,15 +327,12 @@
         <input type="date" id="fCustomAte">
       </div>
       <div class="field">
-        <label>Casa</label>
-        <select id="fCasa"><option value="">Todas</option></select>
-      </div>
-      <div class="field">
         <label>Status</label>
         <select id="fStatus">
           <option value="">Todos</option>
           <option value="pendente">Pendente</option>
           <option value="resolvida">Resolvida</option>
+
         </select>
       </div>
     </div>
@@ -327,7 +362,6 @@
   const CONN_KEY = 'duploGreenSupaConn_painel';
   let client = null;
   let ops = [];
-  let editingId = null;
   let chart = null;
   const openMonths = new Set();
 
@@ -351,6 +385,18 @@
     $('supaUrl').value = c.url;
     $('supaKey').value = c.key;
     if(c.url && c.key) connect();
+    else $('connModal').classList.add('open');
+  }
+
+  function setConnDot(ok){
+    const tag = $('connDotTag');
+    if(ok){
+      tag.textContent = 'online';
+      tag.style.background = 'var(--green-dim)'; tag.style.color = 'var(--green)'; tag.style.borderColor = 'var(--green)';
+    } else {
+      tag.textContent = 'offline';
+      tag.style.background = 'var(--red-dim)'; tag.style.color = 'var(--red)'; tag.style.borderColor = 'var(--red)';
+    }
   }
 
   async function connect(){
@@ -368,7 +414,12 @@
     await loadOps();
   }
 
-  $('btnConnect').onclick = connect;
+  $('btnConnect').onclick = async ()=>{ await connect(); if(client) $('connModal').classList.remove('open'); };
+  $('sideConnBtn').onclick = ()=> $('connModal').classList.add('open');
+  $('connModalClose').onclick = ()=> $('connModal').classList.remove('open');
+  $('connModal').addEventListener('click', (e)=>{ if(e.target.id==='connModal') $('connModal').classList.remove('open'); });
+  $('editModalCloseX').onclick = ()=> $('editModal').classList.remove('open');
+  $('editModal').addEventListener('click', (e)=>{ if(e.target.id==='editModal') $('editModal').classList.remove('open'); });
 
   async function loadOps(){
     if(!client) return;
@@ -380,12 +431,13 @@
     if(error){
       $('connStatus').textContent = 'Erro ao carregar: ' + error.message;
       $('connStatus').style.color = 'var(--red)';
+      setConnDot(false);
       return;
     }
     ops = data || [];
-    editingId = null;
     $('connStatus').textContent = 'Conectado — ' + ops.length + ' operações carregadas.';
     $('connStatus').style.color = 'var(--green)';
+    setConnDot(true);
     updateCasaOptions();
     renderCards();
     renderAll();
@@ -418,25 +470,19 @@
     const pHoje = countPend(o=>o.data_operacao===todayStr);
     const pMes = countPend(o=>(o.data_operacao||'').startsWith(monthStr));
     const pAno = countPend(o=>(o.data_operacao||'').startsWith(yearStr));
-    $('lucroHojeSub').textContent = pHoje>0 ? pHoje+' pendente(s) — usando pior caso' : 'todas resolvidas';
-    $('lucroMesSub').textContent = pMes>0 ? pMes+' pendente(s) — usando pior caso' : 'todas resolvidas';
-    $('lucroAnoSub').textContent = pAno>0 ? pAno+' pendente(s) — usando pior caso' : 'todas resolvidas';
+    $('lucroHojeSub').textContent = pHoje>0 ? pHoje+' pendente(s)' : 'todas resolvidas';
+    $('lucroMesSub').textContent = pMes>0 ? pMes+' pendente(s)' : 'todas resolvidas';
+    $('lucroAnoSub').textContent = pAno>0 ? pAno+' pendente(s)' : 'todas resolvidas';
   }
 
   function updateCasaOptions(){
     const casas = [...new Set(ops.map(o=>o.casa).filter(Boolean))].sort();
-    const sel = $('fCasa');
-    const current = sel.value;
-    sel.innerHTML = '<option value="">Todas</option>' + casas.map(c=>`<option value="${c}">${c}</option>`).join('');
-    sel.value = casas.includes(current) ? current : '';
-
     const dl = $('casaList');
     dl.innerHTML = casas.map(c=>`<option value="${c}">`).join('');
   }
 
   function getFilteredOps(){
     const periodo = $('fPeriodo').value;
-    const casa = $('fCasa').value;
     const status = $('fStatus').value;
     const today = new Date();
     const todayStr = today.toISOString().slice(0,10);
@@ -456,9 +502,8 @@
         if(de) okPeriodo = okPeriodo && d>=de;
         if(ate) okPeriodo = okPeriodo && d<=ate;
       }
-      const okCasa = !casa || o.casa===casa;
       const okStatus = !status || o.status===status;
-      return okPeriodo && okCasa && okStatus;
+      return okPeriodo && okStatus;
     });
   }
 
@@ -607,21 +652,6 @@
   }
 
   function renderOpRow(op){
-    if(editingId === op.id){
-      return `<div class="op-row row-edit">
-        <input type="date" class="mini-input wide" id="edit_data_${op.id}" value="${op.data_operacao||''}">
-        <input type="text" class="mini-input wide" id="edit_casa_${op.id}" list="casaList" placeholder="casa" value="${op.casa||''}">
-        <input type="text" class="mini-input wide" id="edit_nome_${op.id}" placeholder="descrição" value="${op.nome||''}">
-        <input type="number" step="0.01" class="mini-input" id="edit_invest_${op.id}" placeholder="investimento" value="${op.investimento??''}">
-        <input type="number" step="0.01" class="mini-input" id="edit_semult_${op.id}" placeholder="se múltipla" value="${op.lucro_se_multipla??''}">
-        <input type="number" step="0.01" class="mini-input" id="edit_pior_${op.id}" placeholder="pior caso" value="${op.lucro_pior_caso??''}">
-        <input type="number" step="0.01" class="mini-input" id="edit_real_${op.id}" placeholder="lucro real" value="${op.lucro_real??''}">
-        <div class="op-actions">
-          <button class="mini-btn" data-savebtn="${op.id}">salvar</button>
-          <button class="icon-btn" data-cancelbtn="${op.id}">cancelar</button>
-        </div>
-      </div>`;
-    }
     let statusBadge, retornoTxt, retornoClass;
     if(op.status==='resolvida' && op.lucro_real!=null && op.lucro_real>=0){
       statusBadge = `<span class="status-badge green">${ICON_CHECK} GREEN</span>`;
@@ -659,37 +689,9 @@
     });
 
     wrap.querySelectorAll('[data-editbtn]').forEach(btn=>{
-      btn.onclick = ()=>{ editingId = btn.dataset.editbtn; renderGrouped(); };
-    });
-
-    wrap.querySelectorAll('[data-cancelbtn]').forEach(btn=>{
-      btn.onclick = ()=>{ editingId = null; renderGrouped(); };
-    });
-
-    wrap.querySelectorAll('[data-savebtn]').forEach(btn=>{
-      btn.onclick = async ()=>{
-        const id = btn.dataset.savebtn;
-        const val = (elId, isNum) => {
-          const el = document.getElementById(elId);
-          if(!el) return undefined;
-          if(isNum){ return el.value==='' ? null : parseFloat(el.value); }
-          return el.value;
-        };
-        const payload = {
-          data_operacao: val(`edit_data_${id}`, false) || null,
-          nome: val(`edit_nome_${id}`, false),
-          casa: val(`edit_casa_${id}`, false),
-          investimento: val(`edit_invest_${id}`, true),
-          lucro_se_multipla: val(`edit_semult_${id}`, true),
-          lucro_pior_caso: val(`edit_pior_${id}`, true),
-        };
-        const realVal = val(`edit_real_${id}`, true);
-        payload.lucro_real = realVal;
-        payload.status = (realVal!==null && realVal!==undefined) ? 'resolvida' : 'pendente';
-
-        const { error } = await client.from('operacoes').update(payload).eq('id', id);
-        if(!error){ editingId = null; await loadOps(); }
-        else alert('Erro ao salvar: ' + error.message);
+      btn.onclick = ()=>{
+        const op = ops.find(o=>String(o.id)===String(btn.dataset.editbtn));
+        if(op) openEditModal(op);
       };
     });
 
@@ -703,6 +705,123 @@
     });
   }
 
+  // ---- Modal de edição (cabeçalho + pernas) ----
+  function pernaGroups(pernas){
+    const byLeg = {};
+    const order = [];
+    pernas.forEach(p=>{
+      const k = p.perna_num;
+      if(!byLeg[k]){ byLeg[k] = []; order.push(k); }
+      byLeg[k].push(p);
+    });
+    return order.map(k=>({perna_num:k, items:byLeg[k]}));
+  }
+
+  function openEditModal(op){
+    const body = $('editModalBody');
+    const pernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas : null;
+
+    let html = `<div class="filter-row" style="margin-bottom:16px;">
+      <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
+      <div class="field"><label>Casa da múltipla</label><input type="text" class="mini-input wide" id="em_casa" list="casaList" value="${op.casa||''}"></div>
+      <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
+    </div>
+    <div class="filter-row" style="margin-bottom:16px;">
+      <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
+      <div class="field"><label>Lucro se múltipla bater</label><input type="number" step="0.01" class="mini-input wide" id="em_semult" value="${op.lucro_se_multipla??''}"></div>
+      <div class="field"><label>Lucro pior caso</label><input type="number" step="0.01" class="mini-input wide" id="em_pior" value="${op.lucro_pior_caso??''}"></div>
+    </div>`;
+
+    if(pernas && pernas.length){
+      html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Pernas da operação</span></div>`;
+      pernaGroups(pernas).forEach(group=>{
+        const evento = group.items[0].evento || '—';
+        const selMultipla = group.items[0].selecao_multipla || '';
+        html += `<div class="perna-card">
+          <div class="perna-head">
+            <span>Perna ${group.perna_num}${selMultipla ? ' — '+selMultipla : ''}</span>
+            <span class="op-nome" style="max-width:260px;">${evento}</span>
+          </div>`;
+        group.items.forEach((p, idx)=>{
+          const key = `${group.perna_num}_${idx}`;
+          const acaoTag = p.acao==='lay'
+            ? `<span class="acao-tag lay">LAY</span>`
+            : `<span class="acao-tag back">BACK</span>`;
+          html += `<div class="perna-row">
+            <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag}</div>
+            <div class="field"><label>Plataforma</label><input type="text" class="mini-input" list="casaList" id="pf_${key}" value="${p.plataforma||''}"></div>
+            <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
+            <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
+            <div class="field"><label>Status final</label>
+              <select class="mini-input" id="stf_${key}">
+                <option value="pendente" ${p.status_final==='pendente'?'selected':''}>Pendente</option>
+                <option value="ganha" ${p.status_final==='ganha'?'selected':''}>✓ Ganha</option>
+                <option value="perdida" ${p.status_final==='perdida'?'selected':''}>✕ Perdida</option>
+              </select>
+            </div>
+          </div>`;
+        });
+        html += `</div>`;
+      });
+    } else {
+      html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem — só os campos resumidos acima estão disponíveis.</div>`;
+    }
+
+    html += `<div class="filter-row" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
+      <div class="field"><label>Lucro real da operação</label><input type="number" step="0.01" class="mini-input wide" id="em_real" placeholder="preencher ao concluir" value="${op.lucro_real??''}"></div>
+    </div>
+    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+      <button class="btn btn-ghost" id="em_cancel">Cancelar edição</button>
+      <button class="btn btn-blue" id="em_save">Atualizar operação</button>
+    </div>`;
+
+    body.innerHTML = html;
+    $('editModal').classList.add('open');
+    $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
+
+    $('em_save').onclick = async ()=>{
+      const numOrNull = id => { const el = document.getElementById(id); if(!el||el.value==='') return null; return parseFloat(el.value); };
+      const txtOrNull = id => { const el = document.getElementById(id); return el ? (el.value||null) : null; };
+
+      let detalhe = op.detalhe || {};
+      if(pernas && pernas.length){
+        let flatIdx = 0;
+        const groups = pernaGroups(pernas);
+        const updatedPernas = [];
+        groups.forEach(group=>{
+          group.items.forEach((p, idx)=>{
+            const key = `${group.perna_num}_${idx}`;
+            updatedPernas.push({
+              ...p,
+              plataforma: txtOrNull(`pf_${key}`),
+              odd: numOrNull(`odd_${key}`),
+              stake: numOrNull(`stk_${key}`),
+              status_final: document.getElementById(`stf_${key}`).value
+            });
+          });
+        });
+        detalhe = { ...detalhe, pernas: updatedPernas };
+      }
+
+      const realVal = numOrNull('em_real');
+      const payload = {
+        data_operacao: txtOrNull('em_data'),
+        casa: txtOrNull('em_casa'),
+        nome: txtOrNull('em_nome'),
+        investimento: numOrNull('em_invest'),
+        lucro_se_multipla: numOrNull('em_semult'),
+        lucro_pior_caso: numOrNull('em_pior'),
+        lucro_real: realVal,
+        status: realVal!=null ? 'resolvida' : 'pendente',
+        detalhe
+      };
+
+      const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
+      if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
+      else alert('Erro ao salvar: ' + error.message);
+    };
+  }
+
   $('fPeriodo').addEventListener('change', ()=>{
     const isCustom = $('fPeriodo').value === 'custom';
     $('fCustomDeWrap').style.display = isCustom ? 'flex' : 'none';
@@ -711,7 +830,6 @@
   });
   $('fCustomDe').addEventListener('change', renderAll);
   $('fCustomAte').addEventListener('change', renderAll);
-  $('fCasa').addEventListener('change', renderAll);
   $('fStatus').addEventListener('change', renderAll);
 
   initConn();
