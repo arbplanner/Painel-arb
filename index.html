@@ -65,6 +65,12 @@
 
   .perna-card{border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; background:var(--panel-2);}
   .perna-head{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px;}
+  .perna-head-input{
+    background:transparent; border:none; border-bottom:1px dashed transparent; color:var(--amber);
+    font-family:inherit; font-size:inherit; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
+    padding:0 2px; width:170px;
+  }
+  .perna-head-input:hover, .perna-head-input:focus{border-bottom-color:var(--amber); outline:none;}
   .perna-row{display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; padding:8px 0; border-top:1px solid var(--line);}
   .perna-row:first-of-type{border-top:none;}
   .perna-rotulo{width:100%; font-size:12px; color:var(--text); font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:2px;}
@@ -912,14 +918,14 @@
     function syncFormIntoWorking(){
       if(!workingPernas) return;
       pernaGroups(workingPernas).forEach(group=>{
+        const headEl = document.getElementById(`head_${group.perna_num}`);
         group.items.forEach((p, idx)=>{
           const key = `${group.perna_num}_${idx}`;
-          const rotEl = document.getElementById(`rot_${key}`);
           const pfEl = document.getElementById(`pf_${key}`);
           const oddEl = document.getElementById(`odd_${key}`);
           const stkEl = document.getElementById(`stk_${key}`);
           const stfEl = document.getElementById(`stf_${key}`);
-          if(rotEl) p.rotulo = rotEl.value || null;
+          if(headEl) p.selecao_multipla = headEl.value || null;
           if(pfEl) p.plataforma = pfEl.value || null;
           if(oddEl) p.odd = oddEl.value==='' ? null : parseFloat(oddEl.value);
           if(stkEl) p.stake = stkEl.value==='' ? null : parseFloat(stkEl.value);
@@ -931,7 +937,12 @@
     function render(){
       let html = `<div class="filter-row" style="margin-bottom:16px;">
         <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
-        <div class="field"><label>Casa da múltipla</label><select class="mini-input wide" id="em_casa">${casaOptionsHtml(op.casa)}</select></div>
+        <div class="field"><label>Casa da múltipla</label>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span id="emcasalogo">${casaBadgeHtml(op.casa, 20)}</span>
+            <select class="mini-input wide" id="em_casa">${casaOptionsHtml(op.casa)}</select>
+          </div>
+        </div>
         <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
         <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
       </div>`;
@@ -968,7 +979,9 @@
           const selMultipla = group.items[0].selecao_multipla || '';
           html += `<div class="perna-card">
             <div class="perna-head">
-              <span>Perna ${group.perna_num}${selMultipla ? ' — '+selMultipla : ''}</span>
+              <span style="display:flex; align-items:center; gap:6px;">Perna ${group.perna_num} —
+                <input type="text" id="head_${group.perna_num}" value="${selMultipla}" class="perna-head-input">
+              </span>
               <span class="op-nome" style="max-width:260px;">${evento}</span>
             </div>`;
           group.items.forEach((p, idx)=>{
@@ -981,11 +994,16 @@
               : '';
             html += `<div class="perna-row">
               <div class="perna-rotulo">
-                <input type="text" class="mini-input" style="width:180px; font-weight:600;" id="rot_${key}" value="${p.rotulo||''}">
+                <span>${p.rotulo||'—'}</span>
                 ${acaoTag} ${comissaoInfo}
                 <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
               </div>
-              <div class="field"><label>Plataforma</label><select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select></div>
+              <div class="field"><label>Plataforma</label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <span id="pflogo_${key}">${casaBadgeHtml(p.plataforma, 20)}</span>
+                  <select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select>
+                </div>
+              </div>
               <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
               <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
               <div class="field"><label>Status final</label>
@@ -1019,6 +1037,7 @@
       body.innerHTML = html;
       $('editModal').classList.add('open');
       $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
+      $('em_casa').addEventListener('change', ()=>{ $('emcasalogo').innerHTML = casaBadgeHtml($('em_casa').value, 20); });
 
       function recalcPernas(){
         if(!workingPernas || !workingPernas.length) return;
@@ -1061,8 +1080,7 @@
       }
 
       if(workingPernas && workingPernas.length){
-        $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
-        ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
+        $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });        ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
           $(id).addEventListener('input', recalcPernas);
           $(id).addEventListener('change', recalcPernas);
         });
@@ -1072,6 +1090,9 @@
             ['odd_'+key, 'stk_'+key, 'stf_'+key].forEach(id=>{
               document.getElementById(id).addEventListener('input', recalcPernas);
               document.getElementById(id).addEventListener('change', recalcPernas);
+            });
+            document.getElementById(`pf_${key}`).addEventListener('change', ()=>{
+              $(`pflogo_${key}`).innerHTML = casaBadgeHtml(document.getElementById(`pf_${key}`).value, 20);
             });
           });
         });
@@ -1105,11 +1126,12 @@
           const groups = pernaGroups(workingPernas);
           const updatedPernas = [];
           groups.forEach(group=>{
+            const headVal = txtOrNull(`head_${group.perna_num}`);
             group.items.forEach((p, idx)=>{
               const key = `${group.perna_num}_${idx}`;
               updatedPernas.push({
                 ...p,
-                rotulo: txtOrNull(`rot_${key}`),
+                selecao_multipla: headVal,
                 plataforma: txtOrNull(`pf_${key}`),
                 odd: numOrNull(`odd_${key}`),
                 stake: numOrNull(`stk_${key}`),
