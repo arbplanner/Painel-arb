@@ -145,27 +145,38 @@
   .empty{text-align:center; color:var(--muted); padding:30px 0; font-size:13px;}
 
   /* grouped list */
-  .month-block{border:1px solid var(--line); border-radius:8px; margin-bottom:10px; overflow:hidden;}
+  .month-block{border:1px solid var(--line); border-radius:8px; margin-bottom:16px; overflow:hidden;}
   .month-header{
-    display:flex; justify-content:space-between; align-items:center; padding:12px 16px;
-    background:var(--panel-2); cursor:pointer; font-weight:600; font-size:13.5px;
+    display:flex; justify-content:space-between; align-items:center; padding:13px 16px;
+    background:var(--panel-2); cursor:pointer; font-weight:700; font-size:14px;
   }
   .month-header .chev{display:inline-block; margin-right:8px; color:var(--muted); transition:transform .15s;}
   .month-header.open .chev{transform:rotate(90deg);}
   .month-body{display:none;}
   .month-body.open{display:block;}
 
-  .week-block{border-top:1px solid var(--line); padding:0 0 4px;}
+  .week-block{border-top:1px solid var(--line); padding:6px 0 8px; background:rgba(255,255,255,0.008);}
   .week-header{
-    display:flex; justify-content:space-between; padding:9px 16px; font-size:12px; color:var(--muted); font-weight:600;
-    background:rgba(255,255,255,0.015);
+    display:flex; justify-content:space-between; align-items:center; padding:8px 16px; font-size:11.5px; color:var(--muted); font-weight:700;
+    text-transform:uppercase; letter-spacing:.03em;
   }
 
-  .day-block{padding:0 16px;}
+  .day-block{margin:0 12px 10px; padding:10px 12px 4px; background:var(--panel); border:1px solid var(--line); border-radius:7px;}
   .day-header{
-    display:flex; justify-content:space-between; padding:8px 0 4px; font-size:12px; font-weight:600; color:var(--text);
-    border-bottom:1px solid var(--line); margin-bottom:2px;
+    display:flex; justify-content:space-between; align-items:center; padding:0 0 8px; font-size:12.5px; font-weight:700; color:var(--text);
+    margin-bottom:6px;
   }
+
+  .total-pill{
+    display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono';
+    font-weight:700; font-size:12.5px;
+  }
+  .total-pill.pos{background:var(--green-dim); color:var(--green);}
+  .total-pill.neg{background:var(--red-dim); color:var(--red);}
+  .total-pill.zero{background:var(--panel-2); color:var(--muted); border:1px solid var(--line);}
+  .month-header .total-pill{font-size:13.5px; padding:4px 12px;}
+  .week-header .total-pill{font-size:11px; padding:2px 9px;}
+  .day-header .total-pill{font-size:11.5px; padding:2px 9px;}
 
   .op-row{
     display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid rgba(35,42,55,0.6);
@@ -181,9 +192,14 @@
   .detail-row{display:flex; align-items:center; gap:10px; padding:6px 0; font-size:12px; border-bottom:1px solid rgba(35,42,55,0.5);}
   .detail-row:last-child{border-bottom:none;}
   .detail-num{width:26px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; flex-shrink:0;}
+  .detail-casaname{width:100px; font-size:11.5px; font-weight:600; color:var(--text); flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .detail-label{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .detail-label em{color:var(--muted); font-style:normal; font-size:11px;}
   .detail-odd{width:80px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11.5px; flex-shrink:0;}
+  .detail-stake-total{
+    display:flex; justify-content:space-between; align-items:center; padding:6px 0 10px;
+    margin-bottom:6px; border-bottom:1px solid var(--line); font-size:11.5px; color:var(--muted);
+  }
   .casa-badge{width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center;
     font-size:10px; font-weight:700; color:#0a0d12; flex-shrink:0;}
   .casa-name{width:120px; font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -740,21 +756,23 @@
     const months = buildGroups(filtered);
     if(months.length>0 && openMonths.size===0) openMonths.add(months[0].key);
 
+    function pillCls(v){ return v>0?'pos':(v<0?'neg':'zero'); }
+
     let html = '';
     months.forEach(month=>{
       const isOpen = openMonths.has(month.key);
       html += `<div class="month-block">
         <div class="month-header ${isOpen?'open':''}" data-monthtoggle="${month.key}">
           <span><span class="chev">▶</span>${month.label}</span>
-          <span class="${month.total>=0?'pos-txt':'neg-txt'}">${fmt(month.total)}</span>
+          <span class="total-pill ${pillCls(month.total)}">${fmt(month.total)}</span>
         </div>
         <div class="month-body ${isOpen?'open':''}" id="month_${month.key}">`;
       month.weeks.forEach(week=>{
         html += `<div class="week-block">
-          <div class="week-header"><span>${week.label}</span><span class="${week.total>=0?'pos-txt':'neg-txt'}">${fmt(week.total)}</span></div>`;
+          <div class="week-header"><span>${week.label}</span><span class="total-pill ${pillCls(week.total)}">${fmt(week.total)}</span></div>`;
         week.days.forEach(day=>{
           html += `<div class="day-block">
-            <div class="day-header"><span>${day.label}</span><span class="${day.total>=0?'pos-txt':'neg-txt'}">${fmt(day.total)}</span></div>`;
+            <div class="day-header"><span>${day.label}</span><span class="total-pill ${pillCls(day.total)}">${fmt(day.total)}</span></div>`;
           day.ops.forEach(op=>{ html += renderOpRow(op); });
           html += `</div>`;
         });
@@ -795,9 +813,17 @@
       const mTag = mult.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
         : mult.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
         : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
+
+      const stakeTotal = (mult.freebet ? 0 : (op.investimento||0)) + pernas.reduce((a,p)=>a+(p.stake||0),0);
+      detailHtml += `<div class="detail-stake-total">
+        <span>Total investido nessa operação (dinheiro real)</span>
+        <span class="num" style="color:var(--text); font-weight:700;">${fmt(stakeTotal)}</span>
+      </div>`;
+
       detailHtml += `<div class="detail-row">
         <span class="detail-num">#1</span>
         ${casaBadgeHtml(op.casa, 22)}
+        <span class="detail-casaname">${op.casa||'—'}</span>
         <span class="detail-label">${op.nome || 'Múltipla'} <em>(ticket principal)</em></span>
         <span class="detail-odd">Odd: ${oddCombinada?parseFloat(oddCombinada).toFixed(2):'—'}</span>
         <span class="retorno-val ${mProfit==null?'':(mProfit>=0?'pos-txt':'neg-txt')}">${mProfit==null?'—':fmt(mProfit)}</span>
@@ -813,6 +839,7 @@
           detailHtml += `<div class="detail-row">
             <span class="detail-num">#${group.perna_num+1}${idx>0?String.fromCharCode(97+idx):''}</span>
             ${casaBadgeHtml(p.plataforma, 22)}
+            <span class="detail-casaname">${p.plataforma||'—'}</span>
             <span class="detail-label">${label || '—'}</span>
             <span class="detail-odd">Odd: ${p.odd??'—'}</span>
             <span class="retorno-val ${profit==null?'':(profit>=0?'pos-txt':'neg-txt')}">${profit==null?'—':fmt(profit)}</span>
@@ -823,8 +850,9 @@
       detailHtml = `<div class="op-detail">${detailHtml}</div>`;
     }
 
+    const rowClickAttr = (pernas && pernas.length) ? `data-exprow="${op.id}"` : '';
     return `<div class="op-row-wrap">
-    <div class="op-row">
+    <div class="op-row" ${rowClickAttr} style="${pernas && pernas.length ? 'cursor:pointer;' : ''}">
       ${expandBtn}
       <div class="op-time">${dataCurtaOf(op.data_operacao)}<br>${horaOf(op)}</div>
       ${casaBadgeHtml(op.casa, 26)}
@@ -852,12 +880,22 @@
       };
     });
 
+    function toggleExpand(id){
+      id = String(id);
+      if(expandedOps.has(id)) expandedOps.delete(id); else expandedOps.add(id);
+      renderGrouped();
+    }
+
     wrap.querySelectorAll('[data-exptoggle]').forEach(btn=>{
-      btn.onclick = ()=>{
-        const id = String(btn.dataset.exptoggle);
-        if(expandedOps.has(id)) expandedOps.delete(id); else expandedOps.add(id);
-        renderGrouped();
-      };
+      btn.onclick = (e)=>{ e.stopPropagation(); toggleExpand(btn.dataset.exptoggle); };
+    });
+
+    wrap.querySelectorAll('[data-exprow]').forEach(row=>{
+      row.addEventListener('click', (e)=>{
+        if(e.target.closest('.op-actions')) return;
+        if(e.target.closest('[data-exptoggle]')) return;
+        toggleExpand(row.dataset.exprow);
+      });
     });
 
     wrap.querySelectorAll('[data-editbtn]').forEach(btn=>{
