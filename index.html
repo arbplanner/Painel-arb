@@ -965,7 +965,7 @@
                 <option value="perdida" ${multStatus==='perdida'?'selected':''}>✕ Perdida</option>
               </select>
             </div>
-            <div class="field"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
+            <div class="field" style="display:none;"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
           </div>
           <div class="perna-row">
             <label style="display:flex; align-items:center; gap:7px; margin:0; font-size:12.5px; color:var(--text); cursor:pointer;">
@@ -1013,7 +1013,7 @@
                   <option value="perdida" ${p.status_final==='perdida'?'selected':''}>✕ Perdida</option>
                 </select>
               </div>
-              <div class="field"><label>Resultado</label><span class="retorno-val" id="res_${key}">—</span></div>
+              <div class="field" style="display:none;"><label>Resultado</label><span class="retorno-val" id="res_${key}">—</span></div>
             </div>`;
           });
           html += `</div>`;
