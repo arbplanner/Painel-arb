@@ -370,6 +370,10 @@
         <label>Anon public key</label>
         <input type="text" id="supaKey" placeholder="eyJhbGciOi..." style="width:100%;">
       </div>
+      <div class="field">
+        <label>URL do painel (para abrir a edição após enviar)</label>
+        <input type="text" id="painelUrl" placeholder="https://seunome.github.io/Painel-arb/" style="width:100%;">
+      </div>
       <button class="btn btn-ghost" id="btnSaveConn" style="font-size:12px; padding:7px 0;">Salvar conexão</button>
     </div>
 
@@ -792,14 +796,15 @@
   // Conexão com o painel (Supabase) -----------------------------------------------------
   const CONN_KEY = 'duploGreenSupaConn';
   function loadConn(){
-    try{ return JSON.parse(localStorage.getItem(CONN_KEY))||{url:'',key:''}; }catch(e){ return {url:'',key:''}; }
+    try{ return JSON.parse(localStorage.getItem(CONN_KEY))||{url:'',key:'',painelUrl:''}; }catch(e){ return {url:'',key:'',painelUrl:''}; }
   }
-  function saveConn(url,key){ localStorage.setItem(CONN_KEY, JSON.stringify({url,key})); }
+  function saveConn(url,key,painelUrl){ localStorage.setItem(CONN_KEY, JSON.stringify({url,key,painelUrl})); }
 
   function initConnBox(){
     const c = loadConn();
     $('supaUrl').value = c.url;
     $('supaKey').value = c.key;
+    $('painelUrl').value = c.painelUrl||'';
   }
 
   $('connToggle').onclick = ()=>{
@@ -810,7 +815,7 @@
   };
 
   $('btnSaveConn').onclick = ()=>{
-    saveConn($('supaUrl').value.trim(), $('supaKey').value.trim());
+    saveConn($('supaUrl').value.trim(), $('supaKey').value.trim(), $('painelUrl').value.trim());
     $('sendStatus').textContent = 'Conexão salva.';
     $('sendStatus').style.color = 'var(--green)';
   };
@@ -870,10 +875,16 @@
     statusEl.textContent = 'Enviando...';
     statusEl.style.color = 'var(--muted)';
     try{
-      const { error } = await client.from('operacoes').insert(payload);
+      const { data: inserted, error } = await client.from('operacoes').insert(payload).select('id').single();
       if(error) throw error;
       statusEl.textContent = 'Enviado para o painel ✓';
       statusEl.style.color = 'var(--green)';
+
+      const c = loadConn();
+      if(c.painelUrl && inserted && inserted.id){
+        const base = c.painelUrl.trim().replace(/\/?$/, '/');
+        window.open(base + '?edit=' + inserted.id, '_blank');
+      }
     }catch(e){
       statusEl.textContent = 'Erro ao enviar: ' + (e.message||e);
       statusEl.style.color = 'var(--red)';
