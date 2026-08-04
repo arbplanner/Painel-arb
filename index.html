@@ -200,7 +200,7 @@
   .op-time{width:56px; color:var(--muted); font-size:10.5px; font-family:'JetBrains Mono'; line-height:1.5;}
 
   .op-row-labels{
-    display:flex; align-items:center; gap:12px; padding:0 0 8px; margin-top:-4px;
+    display:flex; align-items:center; gap:12px; padding:4px 0 8px;
     font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--muted); text-transform:uppercase;
     border-bottom:1px solid var(--line); margin-bottom:6px;
   }
@@ -428,14 +428,6 @@
 
   <div class="panel">
     <div class="panel-title"><span class="left"><span class="dot"></span> Operações</span></div>
-    <div class="op-row-labels">
-      <span class="lbl-spacer"></span>
-      <span class="lbl-time"></span>
-      <span class="lbl-casa">CASA</span>
-      <span class="lbl-evento">EVENTO</span>
-      <span class="lbl-status">STATUS</span>
-      <span class="lbl-actions">AÇÕES</span>
-    </div>
     <div id="tableWrap">
       <div class="empty">Conecte o painel ao Supabase para ver as operações.</div>
     </div>
@@ -952,7 +944,15 @@
           <div class="week-header"><span>${week.label}</span><span class="total-pill ${pillCls(week.total)}">${fmt(week.total)}</span></div>`;
         week.days.forEach(day=>{
           html += `<div class="day-block">
-            <div class="day-header"><span>${day.label}</span><span class="total-pill ${pillCls(day.total)}">${fmt(day.total)}</span></div>`;
+            <div class="day-header"><span>${day.label}</span><span class="total-pill ${pillCls(day.total)}">${fmt(day.total)}</span></div>
+            <div class="op-row-labels">
+              <span class="lbl-spacer"></span>
+              <span class="lbl-time"></span>
+              <span class="lbl-casa">CASA</span>
+              <span class="lbl-evento">EVENTO</span>
+              <span class="lbl-status">STATUS</span>
+              <span class="lbl-actions">AÇÕES</span>
+            </div>`;
           day.ops.forEach(op=>{ html += renderOpRow(op); });
           html += `</div>`;
         });
