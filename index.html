@@ -456,7 +456,8 @@
   }
 
   function profitOf(op){
-    return op.lucro_real!=null ? op.lucro_real : op.lucro_pior_caso;
+    // só conta lucro de operações realmente resolvidas — pendente não estima mais pelo pior caso
+    return (op.status==='resolvida' && op.lucro_real!=null) ? op.lucro_real : 0;
   }
 
   function renderCards(){
