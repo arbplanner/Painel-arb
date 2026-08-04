@@ -819,7 +819,10 @@
           backgroundColor: 'rgba(47,212,135,0.15)',
           fill: true,
           tension: 0.35,
-          pointRadius: 0,
+          pointRadius: 3,
+          pointBackgroundColor: '#2fd487',
+          pointBorderColor: '#0a0d12',
+          pointBorderWidth: 1,
           borderWidth: 2,
         }]
       },
@@ -1123,21 +1126,34 @@
     return `${d}/${m}/${y.slice(2)}`;
   }
 
+  function novaPernaEmBranco(nextNum){
+    return {
+      perna_num: nextNum, sub: null, evento: '', selecao_multipla: '',
+      odd_multipla: null, acao: 'back', plataforma: null, rotulo: '',
+      odd: null, stake: null, status_final: 'pendente', comissao: null, usou_freebet: false
+    };
+  }
+
   function openEditModal(op){
     const body = $('editModalBody');
+    const isNew = !op.id;
     let workingPernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas.map(p=>({...p})) : null;
 
     function syncFormIntoWorking(){
       if(!workingPernas) return;
       pernaGroups(workingPernas).forEach(group=>{
         const headEl = document.getElementById(`head_${group.perna_num}`);
+        const eventoEl = document.getElementById(`evt_${group.perna_num}`);
         group.items.forEach((p, idx)=>{
           const key = `${group.perna_num}_${idx}`;
+          const acaoEl = document.getElementById(`acao_${key}`);
           const pfEl = document.getElementById(`pf_${key}`);
           const oddEl = document.getElementById(`odd_${key}`);
           const stkEl = document.getElementById(`stk_${key}`);
           const stfEl = document.getElementById(`stf_${key}`);
           if(headEl) p.selecao_multipla = headEl.value || null;
+          if(eventoEl) p.evento = eventoEl.value || null;
+          if(acaoEl) p.acao = acaoEl.value;
           if(pfEl) p.plataforma = pfEl.value || null;
           if(oddEl) p.odd = oddEl.value==='' ? null : parseFloat(oddEl.value);
           if(stkEl) p.stake = stkEl.value==='' ? null : parseFloat(stkEl.value);
@@ -1159,8 +1175,8 @@
         <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
       </div>`;
 
-      if(workingPernas && workingPernas.length){
-        const oddCombinada = pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
+      if(Array.isArray(workingPernas)){
+        const oddCombinada = pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1) || 1;
         const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
         const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
         html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
@@ -1187,28 +1203,31 @@
           </div>
         </div>`;
         pernaGroups(workingPernas).forEach(group=>{
-          const evento = group.items[0].evento || '—';
+          const evento = group.items[0].evento || '';
           const selMultipla = group.items[0].selecao_multipla || '';
           html += `<div class="perna-card">
             <div class="perna-head">
               <span style="display:flex; align-items:center; gap:6px;">Perna ${group.perna_num} —
-                <input type="text" id="head_${group.perna_num}" value="${selMultipla}" class="perna-head-input">
+                <input type="text" id="head_${group.perna_num}" value="${selMultipla}" class="perna-head-input" placeholder="seleção">
               </span>
-              <span class="op-nome" style="max-width:260px;">${evento}</span>
+              <input type="text" id="evt_${group.perna_num}" value="${evento}" placeholder="evento (ex: Time A x Time B)" class="mini-input" style="max-width:220px; background:transparent; border-color:transparent; text-align:right;" onmouseover="this.style.borderColor='var(--line)'" onmouseout="this.style.borderColor='transparent'">
             </div>`;
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
-            const acaoTag = p.acao==='lay'
-              ? `<span class="acao-tag lay">LAY</span>`
-              : `<span class="acao-tag back">BACK</span>`;
             const comissaoInfo = (p.acao==='lay' && p.comissao!=null)
               ? `<span style="color:var(--muted); font-weight:500; font-size:11px;">comissão ${p.comissao}% (já embutida no cálculo)</span>`
               : '';
             html += `<div class="perna-row">
               <div class="perna-rotulo">
                 <span>${p.rotulo||'—'}</span>
-                ${acaoTag} ${comissaoInfo}
+                ${comissaoInfo}
                 <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
+              </div>
+              <div class="field"><label>Ação</label>
+                <select class="mini-input" id="acao_${key}">
+                  <option value="back" ${p.acao!=='lay'?'selected':''}>BACK</option>
+                  <option value="lay" ${p.acao==='lay'?'selected':''}>LAY</option>
+                </select>
               </div>
               <div class="field"><label>Plataforma</label>
                 <div style="display:flex; align-items:center; gap:6px;">
@@ -1230,6 +1249,7 @@
           });
           html += `</div>`;
         });
+        html += `<button class="btn btn-ghost" id="btnAddPerna" style="margin-bottom:14px;">+ Adicionar perna</button>`;
         html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
@@ -1238,12 +1258,13 @@
           <div id="res_hint" style="font-size:11.5px; color:var(--amber); margin-top:6px;"></div>
         </div>`;
       } else {
-        html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem — só os campos resumidos acima estão disponíveis.</div>`;
+        html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem.</div>
+        <button class="btn btn-ghost" id="btnIniciarPernas" style="margin-bottom:14px;">+ Iniciar pernas granulares</button>`;
       }
 
       html += `<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
-        <button class="btn btn-ghost" id="em_cancel">Cancelar edição</button>
-        <button class="btn btn-blue" id="em_save">Atualizar operação</button>
+        <button class="btn btn-ghost" id="em_cancel">Cancelar</button>
+        <button class="btn btn-blue" id="em_save">${isNew?'Salvar operação':'Atualizar operação'}</button>
       </div>`;
 
       body.innerHTML = html;
@@ -1251,8 +1272,13 @@
       $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
       $('em_casa').addEventListener('change', ()=>{ $('emcasalogo').innerHTML = casaBadgeHtml($('em_casa').value, 20); });
 
+      const btnIniciar = $('btnIniciarPernas');
+      if(btnIniciar){
+        btnIniciar.onclick = ()=>{ workingPernas = []; render(); };
+      }
+
       function recalcPernas(){
-        if(!workingPernas || !workingPernas.length) return;
+        if(!Array.isArray(workingPernas)) return;
         let total = 0, allResolved = true;
 
         const mStake = parseFloat($('mult_stake').value);
@@ -1273,7 +1299,8 @@
             const stake = parseFloat(document.getElementById(`stk_${key}`).value);
             const odd = parseFloat(document.getElementById(`odd_${key}`).value);
             const status = document.getElementById(`stf_${key}`).value;
-            const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, p.acao, p.comissao);
+            const acao = document.getElementById(`acao_${key}`).value;
+            const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, acao, p.comissao);
             const resEl = document.getElementById(`res_${key}`);
             if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
             else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
@@ -1291,15 +1318,16 @@
           : 'Ainda salva como PENDENTE — falta marcar ganha/perdida em: ' + pendingLabels.join(', ');
       }
 
-      if(workingPernas && workingPernas.length){
-        $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });        ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
+      if(Array.isArray(workingPernas)){
+        $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
+        ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
           $(id).addEventListener('input', recalcPernas);
           $(id).addEventListener('change', recalcPernas);
         });
         pernaGroups(workingPernas).forEach(group=>{
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
-            ['odd_'+key, 'stk_'+key, 'stf_'+key].forEach(id=>{
+            ['odd_'+key, 'stk_'+key, 'stf_'+key, 'acao_'+key].forEach(id=>{
               document.getElementById(id).addEventListener('input', recalcPernas);
               document.getElementById(id).addEventListener('change', recalcPernas);
             });
@@ -1320,6 +1348,16 @@
             render();
           };
         });
+
+        const btnAdd = $('btnAddPerna');
+        if(btnAdd){
+          btnAdd.onclick = ()=>{
+            syncFormIntoWorking();
+            const nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num))+1 : 1;
+            workingPernas.push(novaPernaEmBranco(nextNum));
+            render();
+          };
+        }
       }
 
       $('em_save').onclick = async ()=>{
@@ -1333,17 +1371,21 @@
           nome: txtOrNull('em_nome'),
           investimento: numOrNull('em_invest'),
         };
+        if(isNew) payload.bankroll = activeBankroll;
 
-        if(workingPernas && workingPernas.length){
+        if(Array.isArray(workingPernas)){
           const groups = pernaGroups(workingPernas);
           const updatedPernas = [];
           groups.forEach(group=>{
             const headVal = txtOrNull(`head_${group.perna_num}`);
+            const eventoVal = txtOrNull(`evt_${group.perna_num}`);
             group.items.forEach((p, idx)=>{
               const key = `${group.perna_num}_${idx}`;
               updatedPernas.push({
                 ...p,
                 selecao_multipla: headVal,
+                evento: eventoVal,
+                acao: document.getElementById(`acao_${key}`).value,
                 plataforma: txtOrNull(`pf_${key}`),
                 odd: numOrNull(`odd_${key}`),
                 stake: numOrNull(`stk_${key}`),
@@ -1366,18 +1408,36 @@
             payload.lucro_real = null;
             payload.status = 'pendente';
           }
-        } else if(workingPernas && workingPernas.length===0){
-          // todas as pernas foram excluídas — mantém detalhe sem pernas, mas preserva múltipla se existia
-          payload.detalhe = { ...detalhe, pernas: [] };
+        } else {
+          payload.status = op.status || 'pendente';
         }
 
-        const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
-        if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
-        else alert('Erro ao salvar: ' + error.message);
+        if(isNew){
+          const { error } = await client.from('operacoes').insert(payload);
+          if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
+          else alert('Erro ao salvar: ' + error.message);
+        } else {
+          const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
+          if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
+          else alert('Erro ao salvar: ' + error.message);
+        }
       };
     }
 
     render();
+  }
+
+  function openNewOperationModal(){
+    openEditModal({
+      id: null,
+      data_operacao: new Date().toISOString().slice(0,10),
+      casa: null,
+      nome: '',
+      investimento: null,
+      status: 'pendente',
+      lucro_real: null,
+      detalhe: { pernas: [], multipla: {} }
+    });
   }
 
   $('fPeriodo').addEventListener('change', ()=>{
@@ -1393,16 +1453,9 @@
   $('sideBankrollAtivo').textContent = activeBankroll;
   $('headerBankrollAtivo').textContent = activeBankroll;
 
-  const CALC_URL_KEY = 'duploGreenCalculadoraUrl';
   $('btnAdicionarAposta').onclick = ()=>{
-    let calcUrl = localStorage.getItem(CALC_URL_KEY);
-    if(!calcUrl){
-      calcUrl = prompt('Cole a URL da sua calculadora (fica salvo pra próxima vez):');
-      if(!calcUrl) return;
-      calcUrl = calcUrl.trim();
-      localStorage.setItem(CALC_URL_KEY, calcUrl);
-    }
-    window.open(calcUrl, '_blank');
+    if(!client){ alert('Conecte o painel ao Supabase primeiro.'); return; }
+    openNewOperationModal();
   };
   initConn();
 })();
