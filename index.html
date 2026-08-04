@@ -86,11 +86,15 @@
   .acao-tag.lay{background:rgba(91,157,255,0.15); color:var(--blue);}
 
   header{
-    padding:28px 32px 20px; display:flex; align-items:baseline; justify-content:space-between;
+    padding:14px 32px; display:flex; align-items:center; justify-content:space-between;
     flex-wrap:wrap; gap:12px; border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    backdrop-filter:blur(6px);
   }
-  .brand{display:flex; align-items:baseline; gap:10px;}
-  .brand .mark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; letter-spacing:-0.02em; color:var(--blue);}
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .logo{width:26px; height:26px; border-radius:7px; background:linear-gradient(135deg,var(--blue),var(--green)); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .brand .logo svg{width:15px; height:15px; color:#0a0d12;}
+  .brand .mark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:17px; letter-spacing:-0.02em; color:var(--text);}
   .brand .sub{color:var(--muted); font-size:13px;}
 
   .wrap{padding:24px 32px 60px;}
@@ -191,6 +195,18 @@
   }
   .op-row:last-child{border-bottom:none;}
   .op-time{width:56px; color:var(--muted); font-size:10.5px; font-family:'JetBrains Mono'; line-height:1.5;}
+
+  .op-row-labels{
+    display:flex; align-items:center; gap:12px; padding:0 0 8px; margin-top:-4px;
+    font-size:10px; font-weight:700; letter-spacing:.05em; color:var(--muted); text-transform:uppercase;
+    border-bottom:1px solid var(--line); margin-bottom:6px;
+  }
+  .op-row-labels .lbl-spacer{width:28px; flex-shrink:0;}
+  .op-row-labels .lbl-time{width:56px; flex-shrink:0;}
+  .op-row-labels .lbl-casa{width:158px; flex-shrink:0;}
+  .op-row-labels .lbl-evento{flex:1;}
+  .op-row-labels .lbl-status{width:170px; flex-shrink:0;}
+  .op-row-labels .lbl-actions{width:68px; flex-shrink:0;}
 
   .op-row-wrap{}
   .op-detail{
@@ -339,9 +355,14 @@
 <div class="main">
 <header>
   <div class="brand">
-    <span class="mark">ARBPLANNER — PAINEL</span>
-    <span class="sub">acompanhamento de lucro das operações</span>
+    <span class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 4 4 5-6"/></svg></span>
+    <span class="mark">ArbPlanner</span>
+    <span class="sub" id="headerBankrollAtivo">Teste</span>
   </div>
+  <button class="btn btn-blue" id="btnAdicionarAposta" style="display:flex; align-items:center; gap:6px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+    Adicionar aposta
+  </button>
 </header>
 
 <div class="wrap">
@@ -404,6 +425,14 @@
 
   <div class="panel">
     <div class="panel-title"><span class="left"><span class="dot"></span> Operações</span></div>
+    <div class="op-row-labels">
+      <span class="lbl-spacer"></span>
+      <span class="lbl-time"></span>
+      <span class="lbl-casa">CASA</span>
+      <span class="lbl-evento">EVENTO</span>
+      <span class="lbl-status">STATUS</span>
+      <span class="lbl-actions">AÇÕES</span>
+    </div>
     <div id="tableWrap">
       <div class="empty">Conecte o painel ao Supabase para ver as operações.</div>
     </div>
@@ -449,6 +478,7 @@
     activeBankroll = name;
     localStorage.setItem(BANKROLL_ATIVO_KEY, name);
     $('sideBankrollAtivo').textContent = name;
+    $('headerBankrollAtivo').textContent = name;
   }
   function bankrollOps(){ return ops.filter(o => (o.bankroll||'Teste') === activeBankroll); }
 
@@ -611,7 +641,10 @@
       return `<div class="card bankroll-card ${isActive?'active':''}" data-selectbankroll="${name}" style="cursor:pointer;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div class="label" style="font-size:14px; color:var(--text); font-weight:700; text-transform:none;">${name}${isActive?' <span style=\"color:var(--green); font-size:11px;\">(ativo)</span>':''}</div>
-          <button class="icon-sq-btn" data-bankrollgear="${name}" title="Opções">${ICON_EDIT}</button>
+          <div style="display:flex; gap:6px;">
+            <button class="icon-sq-btn" data-bankrollgear="${name}" title="Renomear">${ICON_EDIT}</button>
+            <button class="icon-sq-btn danger" data-bankrolldel="${name}" title="Apagar bankroll">${ICON_TRASH}</button>
+          </div>
         </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
           <div style="flex:1;">
@@ -629,10 +662,26 @@
 
     grid.querySelectorAll('[data-selectbankroll]').forEach(card=>{
       card.onclick = (e)=>{
-        if(e.target.closest('[data-bankrollgear]')) return;
+        if(e.target.closest('[data-bankrollgear]') || e.target.closest('[data-bankrolldel]')) return;
         setActiveBankroll(card.dataset.selectbankroll);
         renderCards(); renderAll(); renderBankrollsGrid();
         showView('dashboard');
+      };
+    });
+    grid.querySelectorAll('[data-bankrolldel]').forEach(btn=>{
+      btn.onclick = (e)=>{
+        e.stopPropagation();
+        const name = btn.dataset.bankrolldel;
+        const s = bankrollStats(name);
+        const aviso = s.total>0
+          ? `Esse bankroll tem ${s.total} operação(ões) salva(s). Elas NÃO serão apagadas do banco, só ficam sem aparecer em nenhum bankroll da lista até você reatribuir. Apagar "${name}" mesmo assim?`
+          : `Apagar o bankroll "${name}"?`;
+        if(!confirm(aviso)) return;
+        let list = loadBankrolls().filter(n=>n!==name);
+        if(list.length===0) list = ['Teste'];
+        saveBankrolls(list);
+        if(activeBankroll===name) setActiveBankroll(list[0]);
+        renderCards(); renderAll(); renderBankrollsGrid();
       };
     });
     grid.querySelectorAll('[data-bankrollgear]').forEach(btn=>{
@@ -1342,6 +1391,19 @@
   $('fStatus').addEventListener('change', renderAll);
 
   $('sideBankrollAtivo').textContent = activeBankroll;
+  $('headerBankrollAtivo').textContent = activeBankroll;
+
+  const CALC_URL_KEY = 'duploGreenCalculadoraUrl';
+  $('btnAdicionarAposta').onclick = ()=>{
+    let calcUrl = localStorage.getItem(CALC_URL_KEY);
+    if(!calcUrl){
+      calcUrl = prompt('Cole a URL da sua calculadora (fica salvo pra próxima vez):');
+      if(!calcUrl) return;
+      calcUrl = calcUrl.trim();
+      localStorage.setItem(CALC_URL_KEY, calcUrl);
+    }
+    window.open(calcUrl, '_blank');
+  };
   initConn();
 })();
 </script>
