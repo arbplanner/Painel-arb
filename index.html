@@ -817,10 +817,10 @@
       const isLay = acao==='lay';
       const commission = (comissaoPct!=null && !isNaN(comissaoPct)) ? comissaoPct/100 : 0;
       if(isLay){
-        // lay: "ganha" = a seleção principal aconteceu -> quem apostou contra (lay) PERDE o risco (stake*(odd-1))
-        //      "perdida" = a seleção não aconteceu -> lay GANHA o valor arriscado, descontada a comissão da exchange
-        if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return -(stake*(odd-1)); }
-        if(status==='perdida') return stake*(1-commission);
+        // lay: "ganha" = essa aposta lay que você fez GANHOU -> recebe o valor arriscado, descontada a comissão da exchange
+        //      "perdida" = essa aposta lay PERDEU -> paga a liability (stake*(odd-1))
+        if(status==='ganha') return stake*(1-commission);
+        if(status==='perdida'){ if(odd==null||isNaN(odd)) return null; return -(stake*(odd-1)); }
         return null;
       }
       if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return stake*(odd-1); }
