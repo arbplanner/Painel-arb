@@ -441,6 +441,18 @@
     updateCasaOptions();
     renderCards();
     renderAll();
+    openFromUrlIfNeeded();
+  }
+
+  function openFromUrlIfNeeded(){
+    const params = new URLSearchParams(location.search);
+    const editId = params.get('edit');
+    if(!editId) return;
+    const op = ops.find(o=>String(o.id)===String(editId));
+    if(op) openEditModal(op);
+    params.delete('edit');
+    const newUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
+    history.replaceState(null, '', newUrl);
   }
 
   function profitOf(op){
@@ -724,16 +736,30 @@
     let html = `<div class="filter-row" style="margin-bottom:16px;">
       <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
       <div class="field"><label>Casa da múltipla</label><input type="text" class="mini-input wide" id="em_casa" list="casaList" value="${op.casa||''}"></div>
-      <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
-    </div>
-    <div class="filter-row" style="margin-bottom:16px;">
       <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
-      <div class="field"><label>Lucro se múltipla bater</label><input type="number" step="0.01" class="mini-input wide" id="em_semult" value="${op.lucro_se_multipla??''}"></div>
-      <div class="field"><label>Lucro pior caso</label><input type="number" step="0.01" class="mini-input wide" id="em_pior" value="${op.lucro_pior_caso??''}"></div>
+      <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
     </div>`;
 
     if(pernas && pernas.length){
-      html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Pernas da operação</span></div>`;
+      const oddCombinada = pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
+      const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
+      html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
+      <div class="perna-card" style="border-color:var(--blue);">
+        <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
+        <div class="perna-row" style="border-top:none;">
+          <div class="perna-rotulo">Múltipla combinada <span class="acao-tag back" style="background:rgba(91,157,255,0.15); color:var(--blue);">TICKET</span></div>
+          <div class="field"><label>Odd combinada</label><input type="number" step="0.01" class="mini-input" id="mult_odd" value="${oddCombinada.toFixed(2)}"></div>
+          <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="mult_stake" value="${op.investimento??''}" disabled></div>
+          <div class="field"><label>Status final</label>
+            <select class="mini-input" id="mult_status">
+              <option value="pendente" ${multStatus==='pendente'?'selected':''}>Pendente</option>
+              <option value="ganha" ${multStatus==='ganha'?'selected':''}>✓ Ganha (bateu tudo)</option>
+              <option value="perdida" ${multStatus==='perdida'?'selected':''}>✕ Perdida</option>
+            </select>
+          </div>
+          <div class="field"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
+        </div>
+      </div>`;
       pernaGroups(pernas).forEach(group=>{
         const evento = group.items[0].evento || '—';
         const selMultipla = group.items[0].selecao_multipla || '';
@@ -747,8 +773,11 @@
           const acaoTag = p.acao==='lay'
             ? `<span class="acao-tag lay">LAY</span>`
             : `<span class="acao-tag back">BACK</span>`;
+          const comissaoInfo = (p.acao==='lay' && p.comissao!=null)
+            ? `<span style="color:var(--muted); font-weight:500; font-size:11px;">comissão ${p.comissao}% (já embutida no cálculo)</span>`
+            : '';
           html += `<div class="perna-row">
-            <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag}</div>
+            <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag} ${comissaoInfo}</div>
             <div class="field"><label>Plataforma</label><input type="text" class="mini-input" list="casaList" id="pf_${key}" value="${p.plataforma||''}"></div>
             <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
             <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
@@ -759,18 +788,22 @@
                 <option value="perdida" ${p.status_final==='perdida'?'selected':''}>✕ Perdida</option>
               </select>
             </div>
+            <div class="field"><label>Resultado</label><span class="retorno-val" id="res_${key}">—</span></div>
           </div>`;
         });
         html += `</div>`;
       });
+      html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
+          <span class="retorno-val" id="res_total" style="font-size:15px;">—</span>
+        </div>
+      </div>`;
     } else {
       html += `<div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem — só os campos resumidos acima estão disponíveis.</div>`;
     }
 
-    html += `<div class="filter-row" style="margin-top:18px; border-top:1px solid var(--line); padding-top:16px;">
-      <div class="field"><label>Lucro real da operação</label><input type="number" step="0.01" class="mini-input wide" id="em_real" placeholder="preencher ao concluir" value="${op.lucro_real??''}"></div>
-    </div>
-    <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+    html += `<div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
       <button class="btn btn-ghost" id="em_cancel">Cancelar edição</button>
       <button class="btn btn-blue" id="em_save">Atualizar operação</button>
     </div>`;
@@ -779,13 +812,79 @@
     $('editModal').classList.add('open');
     $('em_cancel').onclick = ()=> $('editModal').classList.remove('open');
 
+    function pernaProfit(stake, odd, status){
+      if(stake==null || isNaN(stake)) return null;
+      if(status==='ganha'){ if(odd==null||isNaN(odd)) return null; return stake*(odd-1); }
+      if(status==='perdida') return -stake;
+      return null;
+    }
+
+    function recalcPernas(){
+      if(!pernas || !pernas.length) return;
+      let total = 0, allResolved = true;
+
+      const mStake = parseFloat($('mult_stake').value);
+      const mOdd = parseFloat($('mult_odd').value);
+      const mStatus = $('mult_status').value;
+      const mProfit = pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus);
+      const mResEl = $('res_mult');
+      if(mProfit==null){ mResEl.textContent = mStatus==='pendente' ? '—' : 'faltam dados'; mResEl.className = 'retorno-val'; }
+      else { mResEl.textContent = fmt(mProfit); mResEl.className = 'retorno-val ' + (mProfit>=0?'pos-txt':'neg-txt'); }
+      if(mStatus==='pendente') allResolved = false;
+      total += (mProfit||0);
+
+      pernaGroups(pernas).forEach(group=>{
+        group.items.forEach((p, idx)=>{
+          const key = `${group.perna_num}_${idx}`;
+          const stake = parseFloat(document.getElementById(`stk_${key}`).value);
+          const odd = parseFloat(document.getElementById(`odd_${key}`).value);
+          const status = document.getElementById(`stf_${key}`).value;
+          const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status);
+          const resEl = document.getElementById(`res_${key}`);
+          if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
+          else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
+          if(status==='pendente') allResolved = false;
+          total += (profit||0);
+        });
+      });
+      const totalEl = $('res_total');
+      totalEl.textContent = fmt(total);
+      totalEl.className = 'retorno-val ' + (total>=0?'pos-txt':'neg-txt');
+      totalEl.dataset.allResolved = allResolved ? '1' : '0';
+      totalEl.dataset.total = total;
+    }
+
+    if(pernas && pernas.length){
+      $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
+      ['mult_odd','mult_status'].forEach(id=>{
+        $(id).addEventListener('input', recalcPernas);
+        $(id).addEventListener('change', recalcPernas);
+      });
+      pernaGroups(pernas).forEach(group=>{
+        group.items.forEach((p, idx)=>{
+          const key = `${group.perna_num}_${idx}`;
+          ['odd_'+key, 'stk_'+key, 'stf_'+key].forEach(id=>{
+            document.getElementById(id).addEventListener('input', recalcPernas);
+            document.getElementById(id).addEventListener('change', recalcPernas);
+          });
+        });
+      });
+      recalcPernas();
+    }
+
     $('em_save').onclick = async ()=>{
       const numOrNull = id => { const el = document.getElementById(id); if(!el||el.value==='') return null; return parseFloat(el.value); };
       const txtOrNull = id => { const el = document.getElementById(id); return el ? (el.value||null) : null; };
 
       let detalhe = op.detalhe || {};
+      const payload = {
+        data_operacao: txtOrNull('em_data'),
+        casa: txtOrNull('em_casa'),
+        nome: txtOrNull('em_nome'),
+        investimento: numOrNull('em_invest'),
+      };
+
       if(pernas && pernas.length){
-        let flatIdx = 0;
         const groups = pernaGroups(pernas);
         const updatedPernas = [];
         groups.forEach(group=>{
@@ -800,21 +899,19 @@
             });
           });
         });
-        detalhe = { ...detalhe, pernas: updatedPernas };
-      }
+        detalhe = {
+          ...detalhe,
+          pernas: updatedPernas,
+          multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value }
+        };
+        payload.detalhe = detalhe;
 
-      const realVal = numOrNull('em_real');
-      const payload = {
-        data_operacao: txtOrNull('em_data'),
-        casa: txtOrNull('em_casa'),
-        nome: txtOrNull('em_nome'),
-        investimento: numOrNull('em_invest'),
-        lucro_se_multipla: numOrNull('em_semult'),
-        lucro_pior_caso: numOrNull('em_pior'),
-        lucro_real: realVal,
-        status: realVal!=null ? 'resolvida' : 'pendente',
-        detalhe
-      };
+        const totalEl = $('res_total');
+        if(totalEl.dataset.allResolved === '1'){
+          payload.lucro_real = parseFloat(totalEl.dataset.total);
+          payload.status = 'resolvida';
+        }
+      }
 
       const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
       if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
