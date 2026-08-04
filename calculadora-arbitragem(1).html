@@ -841,7 +841,9 @@
     const commissionGlobal = parseFloat($('commission').value)||0;
 
     // monta uma "perna" por etapa, com tudo que a planilha precisa pra edição individual
+    // usa sempre o stake calculado (r.detail), travado ou não — trava só existe pra impedir recálculo, não pra habilitar o envio
     const pernas = state.etapas.map((et,i)=>{
+      const d = r.detail[i];
       const base = {
         evento: (et.teamA||'') + (et.teamA||et.teamB ? ' x ' : '') + (et.teamB||''),
         selecao_multipla: et.mainLabel,
@@ -852,11 +854,11 @@
       };
       if(et.mode==='hedge'){
         return [
-          {...base, perna_num:i+1, sub:'A', plataforma: et.out1.casa||null, rotulo: et.out1.label, odd: et.out1.odd, stake: et.locked?et.lockedS1:null, comissao: null},
-          {...base, perna_num:i+1, sub:'B', plataforma: et.out2.casa||null, rotulo: et.out2.label, odd: et.out2.odd, stake: et.locked?et.lockedS2:null, comissao: null}
+          {...base, perna_num:i+1, sub:'A', plataforma: et.out1.casa||null, rotulo: et.out1.label, odd: et.out1.odd, stake: d?d.s1:null, comissao: null},
+          {...base, perna_num:i+1, sub:'B', plataforma: et.out2.casa||null, rotulo: et.out2.label, odd: et.out2.odd, stake: d?d.s2:null, comissao: null}
         ];
       } else {
-        return [{...base, perna_num:i+1, sub:null, plataforma: et.layCasa||null, rotulo: et.mainLabel, odd: et.layOdd, stake: et.locked?et.lockedX:null, comissao: commissionGlobal}];
+        return [{...base, perna_num:i+1, sub:null, plataforma: et.layCasa||null, rotulo: et.mainLabel, odd: et.layOdd, stake: d?d.T:null, comissao: commissionGlobal}];
       }
     }).flat();
 
