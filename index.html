@@ -235,10 +235,9 @@
     Conexão
     <span class="side-tag" id="connDotTag" style="background:var(--red-dim); color:var(--red); border-color:var(--red);">offline</span>
   </div>
-  <div class="side-item soon">
+  <div class="side-item" id="sideCasasBtn" style="cursor:pointer;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v3"/><path d="M12 18v3"/><path d="M3 12h3"/><path d="M18 12h3"/></svg></span>
     Casas de Apostas
-    <span class="side-tag">em breve</span>
   </div>
   <div class="side-item soon">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
@@ -265,6 +264,20 @@
       <button class="btn btn-blue" id="btnConnect">Conectar</button>
     </div>
     <div id="connStatus" style="font-size:11.5px; color:var(--muted); margin-top:8px;"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="casasModal">
+  <div class="panel modal-box">
+    <div class="panel-title">
+      <span class="left"><span class="dot"></span> Casas de apostas</span>
+      <button class="icon-sq-btn" id="casasModalClose" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div class="conn-row" style="margin-bottom:14px;">
+      <div class="field" style="flex:2;"><label>Adicionar nova casa</label><input type="text" id="novaCasaInput" placeholder="Ex: NOVABET"></div>
+      <button class="btn btn-blue" id="btnAddCasa">Adicionar</button>
+    </div>
+    <div id="casasListWrap" style="max-height:340px; overflow-y:auto;"></div>
   </div>
 </div>
 
@@ -369,6 +382,42 @@
   const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
   const CASA_PALETTE = ['#5b9dff','#2fd487','#f2a93c','#ff5c6c','#c792ea','#3ddbd9','#ff8a5c','#8ab4f8','#f28cc7','#9adb6e'];
 
+  const CASAS_PADRAO = [
+    '4PLAYBET','7GAMES','APOSTABET','APOSTAGANHA','BANDBET','BET365','BETANO','BETAO','BETBRA','BETBRA SB',
+    'BETFAIR','BETNACIONAL','BETSUL','BETVIP','BLAZE','BOLSADEAPOSTAS','BRX','BTMGM','BULLSBET',
+    'ESPORTESDASORTE','ESPORTIVABET','ESTRELABET','FULLTBET','GANHEIBET','HIPERBET',
+    'LOTTU','MAXIMABET','MC GAMES','MILHAO.BET','MULTIBET','NOVIBET','ONA','ONLYBETS','PAGOL','PAGOLBET',
+    'PINNACLE','PITACO','PIXBET','R7','RIVALO','SEGUROBET','SPORTINGBET','SPORTY','SPORTYBET','STAKE',
+    'SUPERBET','TRADERBALL','VAIDEBET','VUPI','ZONADEJOGO','N/A'
+  ];
+  const CASAS_KEY = 'duploGreenCasasCustom';
+  function loadCasasCustom(){ try{ return JSON.parse(localStorage.getItem(CASAS_KEY))||[]; }catch(e){ return []; } }
+  function saveCasasCustom(arr){ localStorage.setItem(CASAS_KEY, JSON.stringify(arr)); }
+  function allCasas(){ return [...new Set([...CASAS_PADRAO, ...loadCasasCustom()])].sort(); }
+  function casaOptionsHtml(selected){
+    const casas = allCasas();
+    let opts = '<option value="">Selecione...</option>';
+    opts += casas.map(c=>`<option value="${c}" ${c===selected?'selected':''}>${c}</option>`).join('');
+    if(selected && !casas.includes(selected)) opts += `<option value="${selected}" selected>${selected} (não cadastrada)</option>`;
+    return opts;
+  }
+
+  function renderCasasModal(){
+    const custom = loadCasasCustom();
+    const wrap = $('casasListWrap');
+    let html = '<div style="font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Padrão</div>';
+    html += CASAS_PADRAO.map(c=>`<div style="padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;">${c}</div>`).join('');
+    html += '<div style="font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin:14px 0 6px;">Adicionadas por você</div>';
+    html += custom.length ? custom.map(c=>`<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px;">
+        <span>${c}</span><button class="icon-sq-btn danger" data-rmcasa="${c}" title="Remover">${ICON_TRASH}</button>
+      </div>`).join('')
+      : '<div style="font-size:12px; color:var(--muted);">Nenhuma ainda.</div>';
+    wrap.innerHTML = html;
+    wrap.querySelectorAll('[data-rmcasa]').forEach(btn=>{
+      btn.onclick = ()=>{ saveCasasCustom(loadCasasCustom().filter(c=>c!==btn.dataset.rmcasa)); renderCasasModal(); };
+    });
+  }
+
   const ICON_EDIT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>';
   const ICON_TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>';
   const ICON_CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -420,6 +469,17 @@
   $('connModal').addEventListener('click', (e)=>{ if(e.target.id==='connModal') $('connModal').classList.remove('open'); });
   $('editModalCloseX').onclick = ()=> $('editModal').classList.remove('open');
   $('editModal').addEventListener('click', (e)=>{ if(e.target.id==='editModal') $('editModal').classList.remove('open'); });
+  $('sideCasasBtn').onclick = ()=>{ renderCasasModal(); $('casasModal').classList.add('open'); };
+  $('casasModalClose').onclick = ()=> $('casasModal').classList.remove('open');
+  $('casasModal').addEventListener('click', (e)=>{ if(e.target.id==='casasModal') $('casasModal').classList.remove('open'); });
+  $('btnAddCasa').onclick = ()=>{
+    const val = $('novaCasaInput').value.trim().toUpperCase();
+    if(!val) return;
+    const custom = loadCasasCustom();
+    if(!CASAS_PADRAO.includes(val) && !custom.includes(val)){ custom.push(val); saveCasasCustom(custom); }
+    $('novaCasaInput').value = '';
+    renderCasasModal();
+  };
 
   async function loadOps(){
     if(!client) return;
@@ -489,9 +549,7 @@
   }
 
   function updateCasaOptions(){
-    const casas = [...new Set(ops.map(o=>o.casa).filter(Boolean))].sort();
-    const dl = $('casaList');
-    dl.innerHTML = casas.map(c=>`<option value="${c}">`).join('');
+    // mantido apenas por compatibilidade — os selects de casa agora usam allCasas()/CASAS_PADRAO
   }
 
   function getFilteredOps(){
@@ -736,7 +794,7 @@
 
     let html = `<div class="filter-row" style="margin-bottom:16px;">
       <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
-      <div class="field"><label>Casa da múltipla</label><input type="text" class="mini-input wide" id="em_casa" list="casaList" value="${op.casa||''}"></div>
+      <div class="field"><label>Casa da múltipla</label><select class="mini-input wide" id="em_casa">${casaOptionsHtml(op.casa)}</select></div>
       <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
       <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
     </div>`;
@@ -744,6 +802,7 @@
     if(pernas && pernas.length){
       const oddCombinada = pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
       const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
+      const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
       html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
       <div class="perna-card" style="border-color:var(--blue);">
         <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
@@ -759,6 +818,13 @@
             </select>
           </div>
           <div class="field"><label>Resultado</label><span class="retorno-val" id="res_mult">—</span></div>
+        </div>
+        <div class="perna-row">
+          <label style="display:flex; align-items:center; gap:7px; margin:0; font-size:12.5px; color:var(--text); cursor:pointer;">
+            <input type="checkbox" id="mult_freebet" ${multFreebet?'checked':''} style="width:15px; height:15px;">
+            🎁 Essa múltipla é uma extração de freebet
+          </label>
+          <span style="font-size:11px; color:var(--muted);">marcado: se perder, não conta como prejuízo (não era dinheiro real)</span>
         </div>
       </div>`;
       pernaGroups(pernas).forEach(group=>{
@@ -779,7 +845,7 @@
             : '';
           html += `<div class="perna-row">
             <div class="perna-rotulo">${p.rotulo||'—'} ${acaoTag} ${comissaoInfo}</div>
-            <div class="field"><label>Plataforma</label><input type="text" class="mini-input" list="casaList" id="pf_${key}" value="${p.plataforma||''}"></div>
+            <div class="field"><label>Plataforma</label><select class="mini-input" id="pf_${key}">${casaOptionsHtml(p.plataforma)}</select></div>
             <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
             <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
             <div class="field"><label>Status final</label>
@@ -836,7 +902,8 @@
       const mStake = parseFloat($('mult_stake').value);
       const mOdd = parseFloat($('mult_odd').value);
       const mStatus = $('mult_status').value;
-      const mProfit = pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus, 'back', null);
+      const mFreebet = $('mult_freebet').checked;
+      let mProfit = (mStatus==='perdida' && mFreebet) ? 0 : pernaProfit(isNaN(mStake)?null:mStake, isNaN(mOdd)?null:mOdd, mStatus, 'back', null);
       const mResEl = $('res_mult');
       if(mProfit==null){ mResEl.textContent = mStatus==='pendente' ? '—' : 'faltam dados'; mResEl.className = 'retorno-val'; }
       else { mResEl.textContent = fmt(mProfit); mResEl.className = 'retorno-val ' + (mProfit>=0?'pos-txt':'neg-txt'); }
@@ -866,7 +933,7 @@
 
     if(pernas && pernas.length){
       $('em_invest').addEventListener('input', ()=>{ $('mult_stake').value = $('em_invest').value; recalcPernas(); });
-      ['mult_odd','mult_status'].forEach(id=>{
+      ['mult_odd','mult_status','mult_freebet'].forEach(id=>{
         $(id).addEventListener('input', recalcPernas);
         $(id).addEventListener('change', recalcPernas);
       });
@@ -912,7 +979,7 @@
         detalhe = {
           ...detalhe,
           pernas: updatedPernas,
-          multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value }
+          multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value, freebet: document.getElementById('mult_freebet').checked }
         };
         payload.detalhe = detalhe;
 
