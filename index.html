@@ -67,7 +67,7 @@
   }
   .modal-overlay.open{display:flex;}
   .modal-box{width:460px; max-width:100%;}
-  .modal-box.wide{width:680px; max-height:86vh; overflow-y:auto;}
+  .modal-box.wide{width:860px; max-height:86vh; overflow-y:auto;}
 
   .perna-card{border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; background:var(--panel-2);}
   .perna-head{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px;}
@@ -144,6 +144,9 @@
     color:var(--text); padding:5px 7px; font-family:'JetBrains Mono'; font-size:12.5px;
   }
   .mini-input.wide{width:120px;}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none; margin:0;}
+  input[type=number]{-moz-appearance:textfield;}
   .mini-btn{
     background:var(--green-dim); color:var(--green); border:1px solid var(--green); border-radius:6px;
     padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer; margin-left:6px;
