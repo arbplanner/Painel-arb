@@ -278,7 +278,7 @@
   </div>
 
   <div class="side-group">Gestão</div>
-  <a class="side-item" href="calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
+  <a class="side-item" href="Calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
     Calculadora
   </a>
@@ -1172,7 +1172,6 @@
     function render(){
       let html = `<div class="filter-row" style="margin-bottom:16px;">
         <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
-        <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
       </div>`;
 
       if(Array.isArray(workingPernas)){
@@ -1183,6 +1182,9 @@
         <div class="perna-card" style="border-color:var(--blue);">
           <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
           <div class="perna-row" style="border-top:none;">
+            <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
+          </div>
+          <div class="perna-row">
             <div class="field"><label>Casa da múltipla</label>
               <div style="display:flex; align-items:center; gap:6px;">
                 <span id="emcasalogo">${casaBadgeHtml(op.casa, 20)}</span>
@@ -1219,13 +1221,10 @@
             </div>`;
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
-            const comissaoInfo = (p.acao==='lay' && p.comissao!=null)
-              ? `<span style="color:var(--muted); font-weight:500; font-size:11px;">comissão ${p.comissao}% (já embutida no cálculo)</span>`
-              : '';
+            const isLay = p.acao==='lay';
             html += `<div class="perna-row">
               <div class="perna-rotulo">
                 <span>${p.rotulo||'—'}</span>
-                ${comissaoInfo}
                 <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
               </div>
               <div class="field"><label>Ação</label>
@@ -1242,6 +1241,10 @@
               </div>
               <div class="field"><label>Odd</label><input type="number" step="0.01" class="mini-input" id="odd_${key}" value="${p.odd??''}"></div>
               <div class="field"><label>Stake (R$)</label><input type="number" step="0.01" class="mini-input" id="stk_${key}" value="${p.stake??''}"></div>
+              <div class="field" id="comfield_${key}" style="display:${isLay?'flex':'none'};">
+                <label>Comissão %</label>
+                <input type="number" step="0.1" class="mini-input" id="com_${key}" value="${p.comissao??''}" style="width:70px;">
+              </div>
               <div class="field"><label>Status final</label>
                 <select class="mini-input" id="stf_${key}">
                   <option value="pendente" ${p.status_final==='pendente'?'selected':''}>Pendente</option>
@@ -1271,6 +1274,7 @@
             </div>
           </div>
           <div class="field"><label>Investimento</label><input type="number" step="0.01" class="mini-input wide" id="em_invest" value="${op.investimento??''}"></div>
+          <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
         </div>
         <div class="empty" style="padding:14px 0;">Essa operação foi enviada antes das pernas granulares existirem.</div>
         <button class="btn btn-ghost" id="btnIniciarPernas" style="margin-bottom:14px;">+ Iniciar pernas granulares</button>`;
@@ -1314,7 +1318,9 @@
             const odd = parseFloat(document.getElementById(`odd_${key}`).value);
             const status = document.getElementById(`stf_${key}`).value;
             const acao = document.getElementById(`acao_${key}`).value;
-            const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, acao, p.comissao);
+            const comEl = document.getElementById(`com_${key}`);
+            const comissao = comEl && comEl.value!=='' ? parseFloat(comEl.value) : null;
+            const profit = pernaProfit(isNaN(stake)?null:stake, isNaN(odd)?null:odd, status, acao, comissao);
             const resEl = document.getElementById(`res_${key}`);
             if(profit==null){ resEl.textContent = status==='pendente' ? '—' : 'faltam dados'; resEl.className = 'retorno-val'; }
             else { resEl.textContent = fmt(profit); resEl.className = 'retorno-val ' + (profit>=0?'pos-txt':'neg-txt'); }
@@ -1340,9 +1346,13 @@
         pernaGroups(workingPernas).forEach(group=>{
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
-            ['odd_'+key, 'stk_'+key, 'stf_'+key, 'acao_'+key].forEach(id=>{
+            ['odd_'+key, 'stk_'+key, 'stf_'+key, 'acao_'+key, 'com_'+key].forEach(id=>{
               document.getElementById(id).addEventListener('input', recalcPernas);
               document.getElementById(id).addEventListener('change', recalcPernas);
+            });
+            document.getElementById(`acao_${key}`).addEventListener('change', ()=>{
+              const isLay = document.getElementById(`acao_${key}`).value === 'lay';
+              $(`comfield_${key}`).style.display = isLay ? 'flex' : 'none';
             });
             document.getElementById(`pf_${key}`).addEventListener('change', ()=>{
               $(`pflogo_${key}`).innerHTML = casaBadgeHtml(document.getElementById(`pf_${key}`).value, 20);
@@ -1402,6 +1412,7 @@
                 plataforma: txtOrNull(`pf_${key}`),
                 odd: numOrNull(`odd_${key}`),
                 stake: numOrNull(`stk_${key}`),
+                comissao: numOrNull(`com_${key}`),
                 status_final: document.getElementById(`stf_${key}`).value
               });
             });
