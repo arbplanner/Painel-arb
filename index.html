@@ -1193,7 +1193,10 @@
       </div>`;
 
       if(Array.isArray(workingPernas)){
-        const oddCombinada = pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1) || 1;
+        const savedMultOdd = op.detalhe && op.detalhe.multipla && op.detalhe.multipla.odd;
+        const oddCombinada = (savedMultOdd!=null && savedMultOdd!=='')
+          ? parseFloat(savedMultOdd)
+          : (pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1) || 1);
         const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
         const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
         html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
