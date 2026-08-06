@@ -1156,6 +1156,39 @@
     return `${d}/${m}/${y.slice(2)}`;
   }
 
+  // Google Cloud Vision (OCR gratuito por cota) ---------------------------------------
+  const GVISION_KEY = 'duploGreenGVisionKey';
+  function loadGVisionKey(){ return localStorage.getItem(GVISION_KEY) || ''; }
+  function saveGVisionKey(k){ localStorage.setItem(GVISION_KEY, k); }
+
+  function fileToBase64(file){
+    return new Promise((resolve,reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=> resolve(reader.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function lerImagemComVision(file, apiKey){
+    const base64 = await fileToBase64(file);
+    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requests: [{
+          image: { content: base64 },
+          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
+        }]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message || 'Erro na API do Google Vision');
+    const texto = data.responses && data.responses[0] && data.responses[0].fullTextAnnotation
+      ? data.responses[0].fullTextAnnotation.text : '';
+    return texto;
+  }
+
   function novaPernaEmBranco(nextNum){
     return {
       perna_num: nextNum, sub: null, evento: '', selecao_multipla: '',
@@ -1164,10 +1197,61 @@
     };
   }
 
+  // Tenta reconhecer o texto colado de outra calculadora (tabela "Cenário Vencedor / Stakes / ODD / Lucro / Retorno").
+  // É um "melhor esforço" — funciona para o formato mostrado, mas sempre deixa pra você conferir/ajustar antes de salvar.
+  function parseTextoColado(texto){
+    const linhasBrutas = texto.split('\n').map(l=>l.trim()).filter(l=>l!=='');
+    const startIdx = linhasBrutas.findIndex(l => /cen[aá]rio vencedor/i.test(l));
+    const endIdx = linhasBrutas.findIndex((l,i)=> i>startIdx && /investimento real/i.test(l));
+    const linhas = startIdx>=0 ? linhasBrutas.slice(startIdx+1, endIdx>=0?endIdx:linhasBrutas.length) : linhasBrutas;
+
+    const toNum = s => {
+      const m = (s||'').replace(/[^\d.,]/g,'');
+      if(!m) return null;
+      const norm = m.includes(',') ? m.replace(/\./g,'').replace(',','.') : m;
+      const n = parseFloat(norm);
+      return isNaN(n) ? null : n;
+    };
+    const isMoneyTok = t => /R\$/.test(t);
+    const isBareNumTok = t => /^\d+([.,]\d+)?$/.test((t||'').trim());
+    const isCasaLike = l => l.length>1 && !isMoneyTok(l) && !/^\d/.test(l) && !/^[.,\d\s]+$/.test(l);
+
+    const pernas = [];
+    let i = 0;
+    while(i < linhas.length){
+      if(!isCasaLike(linhas[i])){ i++; continue; }
+      const casa = linhas[i].replace(/[A-Z]{2,4}$/,'').trim(); // remove sigla colada no fim (ex: "EsportivabetFB" -> "Esportivabet")
+      i++;
+      let descricao = '';
+      if(linhas[i] && isCasaLike(linhas[i])){ descricao = linhas[i]; i++; }
+
+      let stake = null, odd = null, count = 0;
+      while(i<linhas.length && count<6){
+        const l = linhas[i];
+        if(count>0 && isCasaLike(l)) break;
+        const tokens = l.split(/\t+/).map(t=>t.trim()).filter(Boolean);
+        let usedAsData = false;
+        tokens.forEach(tok=>{
+          if(isMoneyTok(tok) && stake===null){ stake = toNum(tok); usedAsData = true; }
+          else if(isBareNumTok(tok)){
+            const n = toNum(tok);
+            if(odd===null && n!=null && n>=1.01 && n<=50){ odd = n; }
+            usedAsData = true;
+          } else if(isMoneyTok(tok)){ usedAsData = true; }
+        });
+        if(!usedAsData && count>0) break;
+        i++; count++;
+      }
+      if(casa) pernas.push({casa, descricao, stake, odd});
+    }
+    return pernas;
+  }
+
   function openEditModal(op){
     const body = $('editModalBody');
     const isNew = !op.id;
     let workingPernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas.map(p=>({...p})) : null;
+    let colaMsg = { text: '', color: 'var(--muted)' };
 
     function syncFormIntoWorking(){
       // sincroniza campos do topo/operação 1 de volta pro objeto `op`, senão eles somem ao re-renderizar
@@ -1298,7 +1382,28 @@
           });
           html += `</div>`;
         });
-        html += `<button class="btn btn-ghost" id="btnAddPerna" style="margin-bottom:14px;">+ Adicionar perna</button>`;
+        html += `<button class="btn btn-ghost" id="btnAddPerna" style="margin-bottom:14px;">+ Adicionar perna</button>
+
+        <div class="perna-card" style="border-style:dashed;">
+          <div class="panel-title" style="margin-bottom:8px;"><span class="left">📋 Colar de outra calculadora</span></div>
+          <textarea id="colaTexto" placeholder="Cola aqui o texto copiado da tabela de cenários da outra calculadora..." style="width:100%; min-height:70px; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; color:var(--text); font-family:'JetBrains Mono'; font-size:11.5px; padding:8px;"></textarea>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <span id="colaStatus" style="font-size:11px; color:${colaMsg.color};">${colaMsg.text}</span>
+            <button class="btn btn-ghost" id="btnColarAnalisar" style="width:auto; padding:7px 16px;">Analisar e adicionar pernas</button>
+          </div>
+          <div style="border-top:1px dashed var(--line); margin-top:12px; padding-top:12px;">
+            <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">📷 Ou envie um print (lido por OCR — Google Cloud Vision)</div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+              <input type="file" id="ocrFile" accept="image/*" style="font-size:11.5px; color:var(--muted);">
+              <button class="btn btn-ghost" id="btnOcrLer" style="width:auto; padding:7px 16px;">🔍 Ler imagem</button>
+            </div>
+            <div id="ocrKeyWrap" style="margin-top:8px; ${loadGVisionKey()?'display:none;':''}">
+              <input type="text" id="gvisionKeyInput" placeholder="Chave da API Google Cloud Vision (salva só no seu navegador)" style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; color:var(--text); font-family:'JetBrains Mono'; font-size:11px; padding:7px 9px;" value="${loadGVisionKey()}">
+              <button class="btn btn-ghost" id="btnSalvarGVisionKey" style="width:auto; padding:5px 12px; font-size:11px; margin-top:6px;">Salvar chave</button>
+            </div>
+            <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:6px;"></div>
+          </div>
+        </div>`;
         html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
@@ -1420,6 +1525,79 @@
             const nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num))+1 : 1;
             workingPernas.push(novaPernaEmBranco(nextNum));
             render();
+          };
+        }
+
+        const btnColar = $('btnColarAnalisar');
+        if(btnColar){
+          btnColar.onclick = ()=>{
+            const texto = $('colaTexto').value;
+            const encontradas = parseTextoColado(texto);
+            if(!encontradas.length){
+              colaMsg = { text: 'Não consegui reconhecer nenhuma linha nesse texto — confira o formato ou adicione manualmente.', color: 'var(--red)' };
+              render();
+              return;
+            }
+            syncFormIntoWorking();
+            let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num)) : 0;
+            encontradas.forEach(e=>{
+              nextNum++;
+              const p = novaPernaEmBranco(nextNum);
+              p.plataforma = e.casa || null;
+              p.rotulo = e.descricao || null;
+              p.selecao_multipla = e.descricao || null;
+              p.odd = e.odd!=null && !isNaN(e.odd) ? e.odd : null;
+              p.stake = e.stake!=null && !isNaN(e.stake) ? e.stake : null;
+              workingPernas.push(p);
+            });
+            colaMsg = { text: `${encontradas.length} perna(s) adicionada(s) — confira plataforma/odd/stake antes de salvar.`, color: 'var(--green)' };
+            render();
+          };
+        }
+
+        const btnSalvarKey = $('btnSalvarGVisionKey');
+        if(btnSalvarKey){
+          btnSalvarKey.onclick = ()=>{
+            saveGVisionKey($('gvisionKeyInput').value.trim());
+            $('ocrKeyWrap').style.display = 'none';
+            $('ocrStatus').textContent = 'Chave salva.';
+            $('ocrStatus').style.color = 'var(--green)';
+          };
+        }
+
+        const btnOcr = $('btnOcrLer');
+        if(btnOcr){
+          btnOcr.onclick = async ()=>{
+            const fileInput = $('ocrFile');
+            const apiKey = loadGVisionKey();
+            const statusEl = $('ocrStatus');
+            if(!apiKey){
+              statusEl.textContent = 'Cole e salve sua chave da API do Google Vision primeiro (campo acima).';
+              statusEl.style.color = 'var(--amber)';
+              $('ocrKeyWrap').style.display = 'block';
+              return;
+            }
+            if(!fileInput.files || !fileInput.files[0]){
+              statusEl.textContent = 'Escolha um arquivo de imagem primeiro.';
+              statusEl.style.color = 'var(--amber)';
+              return;
+            }
+            statusEl.textContent = 'Lendo imagem...';
+            statusEl.style.color = 'var(--muted)';
+            try{
+              const texto = await lerImagemComVision(fileInput.files[0], apiKey);
+              if(!texto){
+                statusEl.textContent = 'Não consegui ler nenhum texto nessa imagem.';
+                statusEl.style.color = 'var(--red)';
+                return;
+              }
+              $('colaTexto').value = texto;
+              statusEl.textContent = 'Texto lido! Confira abaixo e clique em "Analisar e adicionar pernas".';
+              statusEl.style.color = 'var(--green)';
+            }catch(e){
+              statusEl.textContent = 'Erro ao ler imagem: ' + (e.message||e);
+              statusEl.style.color = 'var(--red)';
+            }
           };
         }
       }
