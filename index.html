@@ -1019,7 +1019,7 @@
           const tag = p.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
             : p.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
             : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
-          const label = [p.tipo, p.rotulo, p.evento].filter(Boolean).join(' — ');
+          const label = p.selecao_multipla || p.rotulo || '—';
           detailHtml += `<div class="detail-row">
             <span class="detail-num">#${group.perna_num+1}${idx>0?String.fromCharCode(97+idx):''}</span>
             ${casaBadgeHtml(p.plataforma, 22)}
@@ -1166,7 +1166,6 @@
       if(!workingPernas) return;
       pernaGroups(workingPernas).forEach(group=>{
         const headEl = document.getElementById(`head_${group.perna_num}`);
-        const eventoEl = document.getElementById(`evt_${group.perna_num}`);
         group.items.forEach((p, idx)=>{
           const key = `${group.perna_num}_${idx}`;
           const acaoEl = document.getElementById(`acao_${key}`);
@@ -1176,7 +1175,6 @@
           const stfEl = document.getElementById(`stf_${key}`);
           const comEl = document.getElementById(`com_${key}`);
           if(headEl) p.selecao_multipla = headEl.value || null;
-          if(eventoEl) p.evento = eventoEl.value || null;
           if(acaoEl) p.acao = acaoEl.value;
           if(pfEl) p.plataforma = pfEl.value || null;
           if(oddEl) p.odd = oddEl.value==='' ? null : parseFloat(oddEl.value);
@@ -1231,14 +1229,12 @@
           </div>
         </div>`;
         pernaGroups(workingPernas).forEach(group=>{
-          const evento = group.items[0].evento || '';
           const selMultipla = group.items[0].selecao_multipla || '';
           html += `<div class="perna-card">
             <div class="perna-head">
               <span style="display:flex; align-items:center; gap:6px;">Perna ${group.perna_num} —
                 <input type="text" id="head_${group.perna_num}" value="${selMultipla}" class="perna-head-input" placeholder="seleção">
               </span>
-              <input type="text" id="evt_${group.perna_num}" value="${evento}" placeholder="evento (ex: Time A x Time B)" class="mini-input" style="max-width:220px; background:transparent; border-color:transparent; text-align:right;" onmouseover="this.style.borderColor='var(--line)'" onmouseout="this.style.borderColor='transparent'">
             </div>`;
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
@@ -1422,13 +1418,11 @@
           const updatedPernas = [];
           groups.forEach(group=>{
             const headVal = txtOrNull(`head_${group.perna_num}`);
-            const eventoVal = txtOrNull(`evt_${group.perna_num}`);
             group.items.forEach((p, idx)=>{
               const key = `${group.perna_num}_${idx}`;
               updatedPernas.push({
                 ...p,
                 selecao_multipla: headVal,
-                evento: eventoVal,
                 acao: document.getElementById(`acao_${key}`).value,
                 plataforma: txtOrNull(`pf_${key}`),
                 odd: numOrNull(`odd_${key}`),
