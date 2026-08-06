@@ -1147,6 +1147,22 @@
     let workingPernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas.map(p=>({...p})) : null;
 
     function syncFormIntoWorking(){
+      // sincroniza campos do topo/operação 1 de volta pro objeto `op`, senão eles somem ao re-renderizar
+      if($('em_data')) op.data_operacao = $('em_data').value || null;
+      if($('em_nome')) op.nome = $('em_nome').value || null;
+      if($('em_casa')) op.casa = $('em_casa').value || null;
+      if(Array.isArray(workingPernas)){
+        if($('mult_stake')) op.investimento = $('mult_stake').value==='' ? null : parseFloat($('mult_stake').value);
+        op.detalhe = op.detalhe || {};
+        op.detalhe.multipla = {
+          odd: $('mult_odd') ? ($('mult_odd').value==='' ? null : parseFloat($('mult_odd').value)) : null,
+          status_final: $('mult_status') ? $('mult_status').value : 'pendente',
+          freebet: $('mult_freebet') ? $('mult_freebet').checked : false
+        };
+      } else if($('em_invest')){
+        op.investimento = $('em_invest').value==='' ? null : parseFloat($('em_invest').value);
+      }
+
       if(!workingPernas) return;
       pernaGroups(workingPernas).forEach(group=>{
         const headEl = document.getElementById(`head_${group.perna_num}`);
@@ -1158,6 +1174,7 @@
           const oddEl = document.getElementById(`odd_${key}`);
           const stkEl = document.getElementById(`stk_${key}`);
           const stfEl = document.getElementById(`stf_${key}`);
+          const comEl = document.getElementById(`com_${key}`);
           if(headEl) p.selecao_multipla = headEl.value || null;
           if(eventoEl) p.evento = eventoEl.value || null;
           if(acaoEl) p.acao = acaoEl.value;
@@ -1165,6 +1182,7 @@
           if(oddEl) p.odd = oddEl.value==='' ? null : parseFloat(oddEl.value);
           if(stkEl) p.stake = stkEl.value==='' ? null : parseFloat(stkEl.value);
           if(stfEl) p.status_final = stfEl.value;
+          if(comEl) p.comissao = comEl.value==='' ? null : parseFloat(comEl.value);
         });
       });
     }
@@ -1224,7 +1242,7 @@
             const isLay = p.acao==='lay';
             html += `<div class="perna-row">
               <div class="perna-rotulo">
-                <span>${p.rotulo||'—'}</span>
+                <span>${p.rotulo||''}</span>
                 <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
               </div>
               <div class="field"><label>Ação</label>
@@ -1292,7 +1310,7 @@
 
       const btnIniciar = $('btnIniciarPernas');
       if(btnIniciar){
-        btnIniciar.onclick = ()=>{ workingPernas = []; render(); };
+        btnIniciar.onclick = ()=>{ syncFormIntoWorking(); workingPernas = []; render(); };
       }
 
       function recalcPernas(){
