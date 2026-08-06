@@ -70,7 +70,7 @@
   .modal-box.wide{width:860px; max-height:86vh; overflow-y:auto;}
 
   .perna-card{border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; background:var(--panel-2);}
-  .perna-head{display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px;}
+  .perna-head{display:flex; justify-content:space-between; align-items:center; font-size:12.5px; font-weight:700; color:var(--amber); text-transform:uppercase; letter-spacing:.03em; margin-bottom:10px;}
   .perna-head-input{
     background:transparent; border:none; border-bottom:1px dashed transparent; color:var(--amber);
     font-family:inherit; font-size:inherit; font-weight:700; text-transform:uppercase; letter-spacing:.03em;
@@ -1235,6 +1235,7 @@
               <span style="display:flex; align-items:center; gap:6px;">Perna ${group.perna_num} —
                 <input type="text" id="head_${group.perna_num}" value="${selMultipla}" class="perna-head-input" placeholder="seleção">
               </span>
+              ${group.items.length===1 ? `<button class="icon-sq-btn danger" data-rmperna-num="${group.items[0].perna_num}" data-rmperna-sub="${group.items[0].sub||''}" title="Excluir perna">${ICON_TRASH}</button>` : ''}
             </div>`;
           group.items.forEach((p, idx)=>{
             const key = `${group.perna_num}_${idx}`;
@@ -1242,7 +1243,7 @@
             html += `<div class="perna-row">
               <div class="perna-rotulo">
                 <span>${p.rotulo||''}</span>
-                <button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>
+                ${group.items.length>1 ? `<button class="icon-sq-btn danger" style="margin-left:auto;" data-rmperna-num="${p.perna_num}" data-rmperna-sub="${p.sub||''}" title="Excluir perna">${ICON_TRASH}</button>` : ''}
               </div>
               <div class="field"><label>Ação</label>
                 <select class="mini-input" id="acao_${key}">
