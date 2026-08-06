@@ -81,9 +81,9 @@
   .perna-row:first-of-type{border-top:none;}
   .perna-rotulo{width:100%; font-size:12px; color:var(--text); font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:2px;}
   .perna-row .field{flex:1; min-width:110px;}
-  .acao-tag{font-size:9.5px; padding:1px 7px; border-radius:20px; font-weight:700; letter-spacing:.03em;}
-  .acao-tag.back{background:var(--green-dim); color:var(--green);}
-  .acao-tag.lay{background:rgba(91,157,255,0.15); color:var(--blue);}
+  .acao-tag{font-size:9.5px; padding:1px 7px; border-radius:20px; font-weight:700; letter-spacing:.03em; flex-shrink:0;}
+  .acao-tag.back{background:rgba(91,157,255,0.15); color:var(--blue);}
+  .acao-tag.lay{background:var(--red-dim); color:var(--red);}
 
   header{
     padding:14px 32px; display:flex; align-items:center; justify-content:space-between;
@@ -222,6 +222,12 @@
   .detail-casaname{width:100px; font-size:11.5px; font-weight:600; color:var(--text); flex-shrink:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .detail-label{flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .detail-label em{color:var(--muted); font-style:normal; font-size:11px;}
+  .detail-label-input{
+    flex:1; background:transparent; border:1px solid transparent; border-radius:5px;
+    color:var(--text); font-size:12px; font-family:inherit; padding:3px 6px; min-width:0;
+  }
+  .detail-label-input:hover{border-color:var(--line);}
+  .detail-label-input:focus{outline:none; border-color:var(--blue); background:var(--panel-2);}
   .detail-odd{width:80px; color:var(--muted); font-family:'JetBrains Mono'; font-size:11.5px; flex-shrink:0;}
   .detail-stake-total{
     display:flex; justify-content:space-between; align-items:center; padding:6px 0 10px;
@@ -1019,12 +1025,14 @@
           const tag = p.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
             : p.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
             : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
-          const label = p.selecao_multipla || p.rotulo || '—';
+          const label = p.selecao_multipla || p.rotulo || '';
+          const acaoTag = p.acao==='lay' ? `<span class="acao-tag lay">LAY</span>` : `<span class="acao-tag back">BACK</span>`;
           detailHtml += `<div class="detail-row">
             <span class="detail-num">#${group.perna_num+1}${idx>0?String.fromCharCode(97+idx):''}</span>
             ${casaBadgeHtml(p.plataforma, 22)}
             <span class="detail-casaname">${p.plataforma||'—'}</span>
-            <span class="detail-label">${label || '—'}</span>
+            ${acaoTag}
+            <input type="text" class="detail-label-input" value="${label}" placeholder="descrição" data-editselecao="${op.id}|${group.perna_num}">
             <span class="detail-odd">Odd: ${p.odd??'—'}</span>
             <span class="retorno-val ${profit==null?'':(profit>=0?'pos-txt':'neg-txt')}">${profit==null?'—':fmt(profit)}</span>
             ${tag}
@@ -1069,6 +1077,21 @@
       if(expandedOps.has(id)) expandedOps.delete(id); else expandedOps.add(id);
       renderGrouped();
     }
+
+    wrap.querySelectorAll('[data-editselecao]').forEach(inp=>{
+      inp.addEventListener('click', e=> e.stopPropagation());
+      inp.addEventListener('change', async ()=>{
+        const [opId, pernaNumStr] = inp.dataset.editselecao.split('|');
+        const pernaNum = parseFloat(pernaNumStr);
+        const op = ops.find(o=>String(o.id)===String(opId));
+        if(!op || !op.detalhe || !Array.isArray(op.detalhe.pernas)) return;
+        // atualiza todos os itens dessa perna (grupo) — o modal de edição trata a seleção como um valor único por perna
+        const updatedPernas = op.detalhe.pernas.map(p=> p.perna_num===pernaNum ? {...p, selecao_multipla: inp.value||null} : p);
+        const { error } = await client.from('operacoes').update({ detalhe: { ...op.detalhe, pernas: updatedPernas } }).eq('id', opId);
+        if(error) alert('Erro ao salvar: ' + error.message);
+        else await loadOps();
+      });
+    });
 
     wrap.querySelectorAll('[data-exptoggle]').forEach(btn=>{
       btn.onclick = (e)=>{ e.stopPropagation(); toggleExpand(btn.dataset.exptoggle); };
