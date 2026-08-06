@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
   :root{
     --bg:#0a0d12; --panel:#12161e; --panel-2:#161b25; --line:#232a37;
@@ -1156,37 +1157,14 @@
     return `${d}/${m}/${y.slice(2)}`;
   }
 
-  // Google Cloud Vision (OCR gratuito por cota) ---------------------------------------
-  const GVISION_KEY = 'duploGreenGVisionKey';
-  function loadGVisionKey(){ return localStorage.getItem(GVISION_KEY) || ''; }
-  function saveGVisionKey(k){ localStorage.setItem(GVISION_KEY, k); }
-
-  function fileToBase64(file){
-    return new Promise((resolve,reject)=>{
-      const reader = new FileReader();
-      reader.onload = ()=> resolve(reader.result.split(',')[1]);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
+  // Tesseract.js (OCR gratuito, roda inteiro no navegador — sem chave, sem conta, sem custo) ------
+  async function lerImagemComTesseract(file, onProgress){
+    const { data } = await Tesseract.recognize(file, 'por', {
+      logger: m=>{
+        if(onProgress && m.status==='recognizing text') onProgress(Math.round((m.progress||0)*100));
+      }
     });
-  }
-
-  async function lerImagemComVision(file, apiKey){
-    const base64 = await fileToBase64(file);
-    const res = await fetch(`https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requests: [{
-          image: { content: base64 },
-          features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
-        }]
-      })
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error.message || 'Erro na API do Google Vision');
-    const texto = data.responses && data.responses[0] && data.responses[0].fullTextAnnotation
-      ? data.responses[0].fullTextAnnotation.text : '';
-    return texto;
+    return data.text;
   }
 
   function novaPernaEmBranco(nextNum){
@@ -1392,14 +1370,10 @@
             <button class="btn btn-ghost" id="btnColarAnalisar" style="width:auto; padding:7px 16px;">Analisar e adicionar pernas</button>
           </div>
           <div style="border-top:1px dashed var(--line); margin-top:12px; padding-top:12px;">
-            <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">📷 Ou envie um print (lido por OCR — Google Cloud Vision)</div>
+            <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">📷 Ou envie um print (lido por OCR local — grátis, sem conta, roda no seu navegador)</div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
               <input type="file" id="ocrFile" accept="image/*" style="font-size:11.5px; color:var(--muted);">
               <button class="btn btn-ghost" id="btnOcrLer" style="width:auto; padding:7px 16px;">🔍 Ler imagem</button>
-            </div>
-            <div id="ocrKeyWrap" style="margin-top:8px; ${loadGVisionKey()?'display:none;':''}">
-              <input type="text" id="gvisionKeyInput" placeholder="Chave da API Google Cloud Vision (salva só no seu navegador)" style="width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; color:var(--text); font-family:'JetBrains Mono'; font-size:11px; padding:7px 9px;" value="${loadGVisionKey()}">
-              <button class="btn btn-ghost" id="btnSalvarGVisionKey" style="width:auto; padding:5px 12px; font-size:11px; margin-top:6px;">Salvar chave</button>
             </div>
             <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:6px;"></div>
           </div>
@@ -1555,44 +1529,29 @@
           };
         }
 
-        const btnSalvarKey = $('btnSalvarGVisionKey');
-        if(btnSalvarKey){
-          btnSalvarKey.onclick = ()=>{
-            saveGVisionKey($('gvisionKeyInput').value.trim());
-            $('ocrKeyWrap').style.display = 'none';
-            $('ocrStatus').textContent = 'Chave salva.';
-            $('ocrStatus').style.color = 'var(--green)';
-          };
-        }
-
         const btnOcr = $('btnOcrLer');
         if(btnOcr){
           btnOcr.onclick = async ()=>{
             const fileInput = $('ocrFile');
-            const apiKey = loadGVisionKey();
             const statusEl = $('ocrStatus');
-            if(!apiKey){
-              statusEl.textContent = 'Cole e salve sua chave da API do Google Vision primeiro (campo acima).';
-              statusEl.style.color = 'var(--amber)';
-              $('ocrKeyWrap').style.display = 'block';
-              return;
-            }
             if(!fileInput.files || !fileInput.files[0]){
               statusEl.textContent = 'Escolha um arquivo de imagem primeiro.';
               statusEl.style.color = 'var(--amber)';
               return;
             }
-            statusEl.textContent = 'Lendo imagem...';
+            statusEl.textContent = 'Lendo imagem... 0%';
             statusEl.style.color = 'var(--muted)';
             try{
-              const texto = await lerImagemComVision(fileInput.files[0], apiKey);
-              if(!texto){
+              const texto = await lerImagemComTesseract(fileInput.files[0], (pct)=>{
+                statusEl.textContent = `Lendo imagem... ${pct}%`;
+              });
+              if(!texto || !texto.trim()){
                 statusEl.textContent = 'Não consegui ler nenhum texto nessa imagem.';
                 statusEl.style.color = 'var(--red)';
                 return;
               }
               $('colaTexto').value = texto;
-              statusEl.textContent = 'Texto lido! Confira abaixo e clique em "Analisar e adicionar pernas".';
+              statusEl.textContent = 'Texto lido! Confira abaixo (o OCR local erra mais que o texto colado) e clique em "Analisar e adicionar pernas".';
               statusEl.style.color = 'var(--green)';
             }catch(e){
               statusEl.textContent = 'Erro ao ler imagem: ' + (e.message||e);
