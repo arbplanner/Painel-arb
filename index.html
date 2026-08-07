@@ -59,6 +59,10 @@
     margin-left:auto; font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);
     background:var(--panel-2); border:1px solid var(--line); padding:1px 6px; border-radius:20px;
   }
+  .side-item .side-tag{
+    margin-left:auto; font-size:9.5px; font-weight:700; letter-spacing:.03em;
+    background:var(--amber-dim); color:var(--amber); border:1px solid var(--amber); padding:1px 7px; border-radius:20px;
+  }
 
   .main{flex:1; min-width:0;}
 
@@ -295,10 +299,10 @@
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
     Bankrolls
   </div>
-  <div class="side-item soon">
+  <div class="side-item" id="sideFreebetsBtn" style="cursor:pointer;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
     Freebets
-    <span class="side-tag">em breve</span>
+    <span class="side-tag" id="freebetsCountTag" style="display:none;"></span>
   </div>
   <div class="side-item soon">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg></span>
@@ -463,6 +467,13 @@
   </div>
   <div id="bankrollsGrid" class="cards" style="grid-template-columns:repeat(3,1fr);"></div>
 </div>
+
+<div id="viewFreebets" style="display:none;">
+  <div class="panel-title" style="margin-bottom:14px;">
+    <span class="left"><span class="dot"></span> Freebets a usar</span>
+  </div>
+  <div id="freebetsList"></div>
+</div>
 </div>
 </div>
 
@@ -588,6 +599,7 @@
   $('sideConnBtn').onclick = ()=> $('connModal').classList.add('open');
   $('sideDashboardBtn').onclick = ()=> showView('dashboard');
   $('sideBankrollsBtn').onclick = ()=>{ renderBankrollsGrid(); showView('bankrolls'); };
+  $('sideFreebetsBtn').onclick = ()=>{ renderFreebetsList(); showView('freebets'); };
   $('btnNovoBankroll').onclick = ()=>{
     const nome = prompt('Nome do novo bankroll:');
     if(!nome) return;
@@ -635,6 +647,8 @@
     renderCards();
     renderAll();
     renderBankrollsGrid();
+    renderFreebetsList();
+    updateFreebetsBadge();
     openFromUrlIfNeeded();
   }
 
@@ -707,7 +721,7 @@
       card.onclick = (e)=>{
         if(e.target.closest('[data-bankrollgear]') || e.target.closest('[data-bankrolldel]')) return;
         setActiveBankroll(card.dataset.selectbankroll);
-        renderCards(); renderAll(); renderBankrollsGrid();
+        renderCards(); renderAll(); renderBankrollsGrid(); updateFreebetsBadge();
         showView('dashboard');
       };
     });
@@ -724,7 +738,7 @@
         if(list.length===0) list = ['Teste'];
         saveBankrolls(list);
         if(activeBankroll===name) setActiveBankroll(list[0]);
-        renderCards(); renderAll(); renderBankrollsGrid();
+        renderCards(); renderAll(); renderBankrollsGrid(); updateFreebetsBadge();
       };
     });
     grid.querySelectorAll('[data-bankrollgear]').forEach(btn=>{
@@ -750,8 +764,79 @@
   function showView(view){
     $('viewDashboard').style.display = view==='dashboard' ? 'block' : 'none';
     $('viewBankrolls').style.display = view==='bankrolls' ? 'block' : 'none';
+    $('viewFreebets').style.display = view==='freebets' ? 'block' : 'none';
     $('sideDashboardBtn').classList.toggle('active', view==='dashboard');
     $('sideBankrollsBtn').classList.toggle('active', view==='bankrolls');
+    $('sideFreebetsBtn').classList.toggle('active', view==='freebets');
+  }
+
+  function freebetsPendentes(){
+    return ops.filter(o => (o.bankroll||'Teste')===activeBankroll
+      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
+      && !o.detalhe.multipla.freebet_usada_confirmada);
+  }
+
+  function renderFreebetsList(){
+    const wrap = $('freebetsList');
+    if(!wrap) return;
+    const pendentes = freebetsPendentes();
+    const usadas = ops.filter(o => (o.bankroll||'Teste')===activeBankroll
+      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
+      && o.detalhe.multipla.freebet_usada_confirmada);
+
+    if(!pendentes.length && !usadas.length){
+      wrap.innerHTML = `<div class="panel"><div class="empty">Nenhuma freebet marcada ainda. No editar de uma operação, marque "🎁 Gera Freebet" pra ela aparecer aqui.</div></div>`;
+      return;
+    }
+
+    function linha(o, pendente){
+      return `<div class="op-row-wrap"><div class="op-row">
+        ${casaBadgeHtml(o.casa, 26)}
+        <div class="casa-name">${o.casa||'Sem casa'}</div>
+        <div class="op-time">${dataCurtaOf(o.data_operacao)}</div>
+        <div class="op-nome">${o.nome||'—'}</div>
+        <div class="op-actions">
+          ${pendente
+            ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:6px 14px; width:auto;">Marcar como usada</button>`
+            : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
+        </div>
+      </div></div>`;
+    }
+
+    let html = '';
+    if(pendentes.length){
+      html += `<div class="panel" style="margin-bottom:16px;">
+        <div class="panel-title"><span class="left">🎁 Pendentes de usar (${pendentes.length})</span></div>
+        ${pendentes.map(o=>linha(o,true)).join('')}
+      </div>`;
+    }
+    if(usadas.length){
+      html += `<div class="panel">
+        <div class="panel-title"><span class="left">Já usadas</span></div>
+        ${usadas.map(o=>linha(o,false)).join('')}
+      </div>`;
+    }
+    wrap.innerHTML = html;
+
+    wrap.querySelectorAll('[data-freebetusar]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.freebetusar;
+        const op = ops.find(o=>String(o.id)===String(id));
+        if(!op) return;
+        const novoDetalhe = { ...op.detalhe, multipla: { ...op.detalhe.multipla, freebet_usada_confirmada: true } };
+        const { error } = await client.from('operacoes').update({ detalhe: novoDetalhe }).eq('id', id);
+        if(error) alert('Erro ao salvar: ' + error.message);
+        else await loadOps();
+      };
+    });
+  }
+
+  function updateFreebetsBadge(){
+    const n = freebetsPendentes().length;
+    const tag = $('freebetsCountTag');
+    if(!tag) return;
+    if(n>0){ tag.style.display='inline-block'; tag.textContent = n; }
+    else { tag.style.display='none'; }
   }
 
   function openFromUrlIfNeeded(){
@@ -1345,9 +1430,16 @@
           : (pernaGroups(workingPernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1) || 1);
         const multStatus = (op.detalhe && op.detalhe.multipla && op.detalhe.multipla.status_final) || 'pendente';
         const multFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet);
+        const multGeraFreebet = !!(op.detalhe && op.detalhe.multipla && op.detalhe.multipla.gera_freebet);
         html += `<div class="panel-title" style="margin:6px 0 10px;"><span class="left">Operação múltipla + pernas de cobertura</span></div>
         <div class="perna-card" style="border-color:var(--blue);">
-          <div class="perna-head" style="color:var(--blue);"><span>Operação 1 — Múltipla (ticket principal)</span></div>
+          <div class="perna-head" style="color:var(--blue);">
+            <span>Operação 1 — Múltipla (ticket principal)</span>
+            <label style="display:flex; align-items:center; gap:6px; margin:0; font-size:11.5px; color:var(--text); text-transform:none; font-weight:600; cursor:pointer;">
+              <input type="checkbox" id="mult_freebet" ${multFreebet?'checked':''} style="width:14px; height:14px;">
+              🎁 Freebet
+            </label>
+          </div>
           <div class="perna-row" style="border-top:none;">
             <div class="field" style="flex:2;"><label>Nome / descrição</label><input type="text" class="mini-input" style="width:100%" id="em_nome" value="${op.nome||''}"></div>
           </div>
@@ -1371,9 +1463,10 @@
           </div>
           <div class="perna-row">
             <label style="display:flex; align-items:center; gap:7px; margin:0; font-size:12.5px; color:var(--text); cursor:pointer;">
-              <input type="checkbox" id="mult_freebet" ${multFreebet?'checked':''} style="width:15px; height:15px;">
-              🎁 Freebet
+              <input type="checkbox" id="mult_gerafreebet" ${multGeraFreebet?'checked':''} style="width:15px; height:15px;">
+              🎁 Gera Freebet
             </label>
+            <span style="font-size:11px; color:var(--muted); margin-left:8px;">marca essa casa/data como tendo uma freebet a ser usada, na aba Freebets</span>
           </div>
         </div>`;
         pernaGroups(workingPernas).forEach(group=>{
@@ -1584,7 +1677,13 @@
           detalhe = {
             ...detalhe,
             pernas: updatedPernas,
-            multipla: { odd: numOrNull('mult_odd'), status_final: document.getElementById('mult_status').value, freebet: document.getElementById('mult_freebet').checked }
+            multipla: {
+              ...(detalhe.multipla||{}),
+              odd: numOrNull('mult_odd'),
+              status_final: document.getElementById('mult_status').value,
+              freebet: document.getElementById('mult_freebet').checked,
+              gera_freebet: document.getElementById('mult_gerafreebet').checked
+            }
           };
           payload.detalhe = detalhe;
 
