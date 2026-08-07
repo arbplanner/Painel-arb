@@ -194,10 +194,11 @@
   .week-header .total-pill{font-size:11px; padding:2px 9px;}
   .day-header .total-pill{font-size:11.5px; padding:2px 9px;}
 
+  .op-row-wrap{border-bottom:1px solid var(--line);}
+  .op-row-wrap:last-child{border-bottom:none;}
   .op-row{
-    display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid rgba(35,42,55,0.6);
+    display:flex; align-items:center; gap:12px; padding:9px 0;
   }
-  .op-row:last-child{border-bottom:none;}
   .op-time{width:56px; color:var(--muted); font-size:10.5px; font-family:'JetBrains Mono'; line-height:1.5;}
 
   .op-row-labels{
@@ -1222,7 +1223,33 @@
       }
       if(casa) pernas.push({casa, descricao, stake, odd});
     }
-    return pernas;
+    if(pernas.length) return pernas;
+
+    // Modo 2: cada "linha" tem casa + números todos juntos (comum em texto de OCR) —
+    // ex: "Esportivabet R$ 50,00 2.00 R$ 20,50 R$ 50,00"
+    const toNum2 = toNum;
+    const pernasSoltas = [];
+    linhasBrutas.forEach(l=>{
+      const m = l.match(/(R\$|\d)/);
+      if(!m || m.index===0) return;
+      const casa = l.slice(0, m.index).replace(/[^A-Za-zÀ-ÿ0-9 ]+$/,'').replace(/[A-Z]{2,4}$/,'').trim();
+      if(!casa || casa.length<2) return;
+      const resto = l.slice(m.index);
+      const moneyTokens = resto.match(/R\$\s?[\d.,]+/g) || [];
+      const stake = moneyTokens[0] ? toNum2(moneyTokens[0]) : null;
+      // remove os valores em R$ inteiros (símbolo + número) ANTES de procurar a odd,
+      // senão o número de dentro de "R$ 14,50" pode ser lido como se fosse a odd
+      const restoSemMoeda = resto.replace(/R\$\s?[\d.,]+/g, ' ');
+      let odd = null;
+      restoSemMoeda.split(/\s+/).forEach(tok=>{
+        if(odd===null && /^\d+[.,]\d{1,2}$/.test(tok)){
+          const n = toNum2(tok);
+          if(n!=null && n>=1.01 && n<=50) odd = n;
+        }
+      });
+      pernasSoltas.push({casa, descricao:'', stake, odd});
+    });
+    return pernasSoltas;
   }
 
   function openEditModal(op){
