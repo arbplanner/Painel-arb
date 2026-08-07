@@ -184,9 +184,10 @@
   }
 
   .total-pill{
-    display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono';
+    display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-family:'JetBrains Mono';
     font-weight:700; font-size:12.5px;
   }
+  .total-pill svg{width:12px; height:12px; flex-shrink:0;}
   .total-pill.pos{background:var(--green-dim); color:var(--green);}
   .total-pill.neg{background:var(--red-dim); color:var(--red);}
   .total-pill.zero{background:var(--panel-2); color:var(--muted); border:1px solid var(--line);}
@@ -639,12 +640,37 @@
 
   function bankrollStats(name){
     const list = ops.filter(o => (o.bankroll||'Teste') === name);
-    const resolvidas = list.filter(o=>o.status==='resolvida' && o.lucro_real!=null);
+    const resolvidas = list.filter(o=>o.status==='resolvida' && o.lucro_real!=null)
+      .slice()
+      .sort((a,b)=>{
+        const da=a.data_operacao||'', db=b.data_operacao||'';
+        if(da!==db) return da<db?-1:1;
+        return (a.criado_em||'')<(b.criado_em||'')?-1:1;
+      });
     const lucroTotal = resolvidas.reduce((a,o)=>a+o.lucro_real, 0);
     const investidoTotal = resolvidas.reduce((a,o)=>a+(o.investimento||0), 0);
     const roi = investidoTotal>0 ? (lucroTotal/investidoTotal*100) : 0;
     const pendentes = list.filter(o=>o.status!=='resolvida').length;
-    return { total: list.length, lucroTotal, roi, pendentes };
+    let running = 0;
+    const serie = resolvidas.map(o=>{ running += o.lucro_real; return running; });
+    return { total: list.length, lucroTotal, roi, pendentes, serie };
+  }
+
+  function sparklineSvg(serie){
+    if(serie.length<2){
+      return `<div style="height:32px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:10px;">sem dados suficientes ainda</div>`;
+    }
+    const w=240, h=32, pad=3;
+    const min = Math.min(...serie,0), max = Math.max(...serie,0);
+    const range = (max-min)||1;
+    const stepX = (w-2*pad)/(serie.length-1);
+    const pts = serie.map((v,i)=>{
+      const x = pad + i*stepX;
+      const y = pad + (h-2*pad) * (1 - (v-min)/range);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+    const cor = serie[serie.length-1]>=0 ? '#2fd487' : '#ff5c6c';
+    return `<svg viewBox="0 0 ${w} ${h}" style="width:100%; height:32px; display:block;"><polyline points="${pts}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
 
   function renderBankrollsGrid(){
@@ -654,25 +680,26 @@
     grid.innerHTML = list.map(name=>{
       const s = bankrollStats(name);
       const isActive = name===activeBankroll;
-      return `<div class="card bankroll-card ${isActive?'active':''}" data-selectbankroll="${name}" style="cursor:pointer;">
+      return `<div class="card bankroll-card ${isActive?'active':''}" data-selectbankroll="${name}" style="cursor:pointer; padding:14px 16px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-          <div class="label" style="font-size:14px; color:var(--text); font-weight:700; text-transform:none;">${name}${isActive?' <span style=\"color:var(--green); font-size:11px;\">(ativo)</span>':''}</div>
+          <div class="label" style="font-size:13px; color:var(--text); font-weight:700; text-transform:none;">${name}${isActive?' <span style=\"color:var(--green); font-size:10px;\">(ativo)</span>':''}</div>
           <div style="display:flex; gap:6px;">
             <button class="icon-sq-btn" data-bankrollgear="${name}" title="Renomear">${ICON_EDIT}</button>
             <button class="icon-sq-btn danger" data-bankrolldel="${name}" title="Apagar bankroll">${ICON_TRASH}</button>
           </div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:10px;">
+        <div style="display:flex; gap:10px; margin-top:8px;">
           <div style="flex:1;">
-            <div class="label" style="font-size:10px;">ROI</div>
-            <div class="value num" style="font-size:18px; color:${s.roi>=0?'var(--green)':'var(--red)'};">${s.roi.toFixed(2)}%</div>
+            <div class="label" style="font-size:9.5px;">ROI</div>
+            <div class="value num" style="font-size:15px; color:${s.roi>=0?'var(--green)':'var(--red)'};">${s.roi.toFixed(2)}%</div>
           </div>
           <div style="flex:1;">
-            <div class="label" style="font-size:10px;">Lucro total</div>
-            <div class="value num" style="font-size:18px; color:${s.lucroTotal>=0?'var(--green)':'var(--red)'};">${fmt(s.lucroTotal)}</div>
+            <div class="label" style="font-size:9.5px;">Lucro total</div>
+            <div class="value num" style="font-size:15px; color:${s.lucroTotal>=0?'var(--green)':'var(--red)'};">${fmt(s.lucroTotal)}</div>
           </div>
         </div>
-        ${s.pendentes>0 ? `<div class="total-pill zero" style="margin-top:10px; display:block; text-align:center;">${ICON_PEND} ${s.pendentes} aposta(s) em pendente</div>` : ''}
+        <div style="margin-top:8px;">${sparklineSvg(s.serie)}</div>
+        ${s.pendentes>0 ? `<div class="total-pill zero" style="margin-top:8px; justify-content:center; width:100%; box-sizing:border-box;">${ICON_PEND} ${s.pendentes} aposta(s) em pendente</div>` : ''}
       </div>`;
     }).join('');
 
@@ -889,7 +916,7 @@
     'BANDBET':'bandbet.bet.br','BET365':'bet365.com','BETANO':'betano.bet.br','BETAO':'betao.bet.br','BETBRA':'betbra.bet.br',
     'BETFAIR':'betfair.bet.br','BETNACIONAL':'betnacional.bet.br','BETSUL':'betsul.bet.br','BETVIP':'betvip.bet.br',
     'BLAZE':'blaze.bet.br','BRX':'brx.bet.br','BULLSBET':'bullsbet.bet.br','ESPORTESDASORTE':'esportesdasorte.bet.br',
-    'ESPORTIVABET':'esportivabet.bet.br','ESTRELABET':'estrelabet.bet.br','FULLTBET':'fulltbet.bet.br','GANHEIBET':'ganheibet.bet.br',
+    'ESPORTIVABET':'esportiva.bet.br','ESTRELABET':'estrelabet.bet.br','FULLTBET':'fulltbet.bet.br','GANHEIBET':'ganheibet.bet.br',
     'HIPERBET':'hiperbet.bet.br','LOTTU':'lottu.bet.br','MAXIMABET':'maximabet.bet.br','MULTIBET':'multibet.bet.br',
     'NOVIBET':'novibet.bet.br','ONABET':'onabet.bet.br','PAGOL':'pagol.bet.br','PAGOLBET':'pagolbet.bet.br',
     'PINNACLE':'pinnacle.com','PITACO':'pitaco.bet.br','PIXBET':'pixbet.com','R7':'r7pay.bet.br','RIVALO':'rivalo.bet.br',
