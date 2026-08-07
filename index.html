@@ -358,13 +358,19 @@
 </div>
 
 <div class="modal-overlay" id="editModal">
-  <div class="panel modal-box wide">
+  <div class="panel modal-box wide" style="position:relative;">
     <div class="panel-title">
       <span class="left"><span class="dot"></span> Editar operação</span>
       <div style="display:flex; gap:6px;">
-        <button class="icon-sq-btn" id="btnToggleColar" title="Ler de outra calculadora (texto ou print)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
+        <button class="icon-sq-btn" id="btnToggleColar" title="Ler print de outra calculadora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></button>
         <button class="icon-sq-btn" id="editModalCloseX" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
       </div>
+    </div>
+    <div id="colarPopover" class="panel" style="display:none; position:absolute; top:52px; right:20px; width:280px; z-index:30; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+      <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">📷 Print de outra calculadora (OCR local — grátis, sem conta)</div>
+      <input type="file" id="ocrFile" accept="image/*" style="font-size:11px; color:var(--muted); width:100%; margin-bottom:8px;">
+      <button class="btn btn-blue" id="btnOcrLer" style="width:100%; padding:7px 0;">🔍 Ler imagem</button>
+      <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:8px;"></div>
     </div>
     <div id="editModalBody"></div>
   </div>
@@ -1259,7 +1265,6 @@
     const body = $('editModalBody');
     const isNew = !op.id;
     let workingPernas = (op.detalhe && Array.isArray(op.detalhe.pernas)) ? op.detalhe.pernas.map(p=>({...p})) : null;
-    let colaMsg = { text: '', color: 'var(--muted)' };
     let colarAberto = false;
 
     function syncFormIntoWorking(){
@@ -1391,26 +1396,7 @@
           });
           html += `</div>`;
         });
-        html += `<button class="btn btn-ghost" id="btnAddPerna" style="margin-bottom:14px;">+ Adicionar perna</button>
-
-        <div id="colarWrap" style="display:${colarAberto?'block':'none'};">
-        <div class="perna-card" style="border-style:dashed;">
-          <div class="panel-title" style="margin-bottom:8px;"><span class="left">📋 Colar de outra calculadora</span></div>
-          <textarea id="colaTexto" placeholder="Cola aqui o texto copiado da tabela de cenários da outra calculadora..." style="width:100%; min-height:70px; background:var(--panel-2); border:1px solid var(--line); border-radius:7px; color:var(--text); font-family:'JetBrains Mono'; font-size:11.5px; padding:8px;"></textarea>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
-            <span id="colaStatus" style="font-size:11px; color:${colaMsg.color};">${colaMsg.text}</span>
-            <button class="btn btn-ghost" id="btnColarAnalisar" style="width:auto; padding:7px 16px;">Analisar e adicionar pernas</button>
-          </div>
-          <div style="border-top:1px dashed var(--line); margin-top:12px; padding-top:12px;">
-            <div style="font-size:11px; color:var(--muted); margin-bottom:6px;">📷 Ou envie um print (lido por OCR local — grátis, sem conta, roda no seu navegador)</div>
-            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <input type="file" id="ocrFile" accept="image/*" style="font-size:11.5px; color:var(--muted);">
-              <button class="btn btn-ghost" id="btnOcrLer" style="width:auto; padding:7px 16px;">🔍 Ler imagem</button>
-            </div>
-            <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:6px;"></div>
-          </div>
-        </div>
-        </div>`;
+        html += `<button class="btn btn-ghost" id="btnAddPerna" style="margin-bottom:14px;">+ Adicionar perna</button>`;
         html += `<div class="perna-card" style="background:transparent; border-style:dashed;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:12px; color:var(--muted);">Soma total (múltipla + pernas de cobertura)</span>
@@ -1534,64 +1520,6 @@
             render();
           };
         }
-
-        const btnColar = $('btnColarAnalisar');
-        if(btnColar){
-          btnColar.onclick = ()=>{
-            const texto = $('colaTexto').value;
-            const encontradas = parseTextoColado(texto);
-            if(!encontradas.length){
-              colaMsg = { text: 'Não consegui reconhecer nenhuma linha nesse texto — confira o formato ou adicione manualmente.', color: 'var(--red)' };
-              render();
-              return;
-            }
-            syncFormIntoWorking();
-            let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num)) : 0;
-            encontradas.forEach(e=>{
-              nextNum++;
-              const p = novaPernaEmBranco(nextNum);
-              p.plataforma = e.casa || null;
-              p.rotulo = e.descricao || null;
-              p.selecao_multipla = e.descricao || null;
-              p.odd = e.odd!=null && !isNaN(e.odd) ? e.odd : null;
-              p.stake = e.stake!=null && !isNaN(e.stake) ? e.stake : null;
-              workingPernas.push(p);
-            });
-            colaMsg = { text: `${encontradas.length} perna(s) adicionada(s) — confira plataforma/odd/stake antes de salvar.`, color: 'var(--green)' };
-            render();
-          };
-        }
-
-        const btnOcr = $('btnOcrLer');
-        if(btnOcr){
-          btnOcr.onclick = async ()=>{
-            const fileInput = $('ocrFile');
-            const statusEl = $('ocrStatus');
-            if(!fileInput.files || !fileInput.files[0]){
-              statusEl.textContent = 'Escolha um arquivo de imagem primeiro.';
-              statusEl.style.color = 'var(--amber)';
-              return;
-            }
-            statusEl.textContent = 'Lendo imagem... 0%';
-            statusEl.style.color = 'var(--muted)';
-            try{
-              const texto = await lerImagemComTesseract(fileInput.files[0], (pct)=>{
-                statusEl.textContent = `Lendo imagem... ${pct}%`;
-              });
-              if(!texto || !texto.trim()){
-                statusEl.textContent = 'Não consegui ler nenhum texto nessa imagem.';
-                statusEl.style.color = 'var(--red)';
-                return;
-              }
-              $('colaTexto').value = texto;
-              statusEl.textContent = 'Texto lido! Confira abaixo (o OCR local erra mais que o texto colado) e clique em "Analisar e adicionar pernas".';
-              statusEl.style.color = 'var(--green)';
-            }catch(e){
-              statusEl.textContent = 'Erro ao ler imagem: ' + (e.message||e);
-              statusEl.style.color = 'var(--red)';
-            }
-          };
-        }
       }
 
       $('em_save').onclick = async ()=>{
@@ -1659,9 +1587,57 @@
 
     $('btnToggleColar').onclick = ()=>{
       colarAberto = !colarAberto;
-      if(Array.isArray(workingPernas)){
-        const wrap = $('colarWrap');
-        if(wrap) wrap.style.display = colarAberto ? 'block' : 'none';
+      $('colarPopover').style.display = colarAberto ? 'block' : 'none';
+    };
+
+    $('btnOcrLer').onclick = async ()=>{
+      const fileInput = $('ocrFile');
+      const statusEl = $('ocrStatus');
+      if(!fileInput.files || !fileInput.files[0]){
+        statusEl.textContent = 'Escolha um arquivo de imagem primeiro.';
+        statusEl.style.color = 'var(--amber)';
+        return;
+      }
+      if(!Array.isArray(workingPernas)){
+        statusEl.textContent = 'Adicione ao menos uma perna (ou clique em "+ Iniciar pernas granulares") antes de ler um print.';
+        statusEl.style.color = 'var(--amber)';
+        return;
+      }
+      statusEl.textContent = 'Lendo imagem... 0%';
+      statusEl.style.color = 'var(--muted)';
+      try{
+        const texto = await lerImagemComTesseract(fileInput.files[0], (pct)=>{
+          statusEl.textContent = `Lendo imagem... ${pct}%`;
+        });
+        if(!texto || !texto.trim()){
+          statusEl.textContent = 'Não consegui ler nenhum texto nessa imagem.';
+          statusEl.style.color = 'var(--red)';
+          return;
+        }
+        const encontradas = parseTextoColado(texto);
+        if(!encontradas.length){
+          statusEl.textContent = 'Não consegui reconhecer nenhuma aposta nessa imagem.';
+          statusEl.style.color = 'var(--red)';
+          return;
+        }
+        syncFormIntoWorking();
+        let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num)) : 0;
+        encontradas.forEach(e=>{
+          nextNum++;
+          const p = novaPernaEmBranco(nextNum);
+          p.plataforma = e.casa || null;
+          p.rotulo = e.descricao || null;
+          p.selecao_multipla = e.descricao || null;
+          p.odd = e.odd!=null && !isNaN(e.odd) ? e.odd : null;
+          p.stake = e.stake!=null && !isNaN(e.stake) ? e.stake : null;
+          workingPernas.push(p);
+        });
+        statusEl.textContent = `${encontradas.length} perna(s) adicionada(s) — confira odd/stake nos campos abaixo (o OCR local erra às vezes).`;
+        statusEl.style.color = 'var(--green)';
+        render();
+      }catch(e){
+        statusEl.textContent = 'Erro ao ler imagem: ' + (e.message||e);
+        statusEl.style.color = 'var(--red)';
       }
     };
 
