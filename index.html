@@ -393,6 +393,24 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="quickFreebetModal">
+  <div class="panel modal-box" style="max-width:380px;">
+    <div class="panel-title">
+      <span class="left"><span class="dot"></span> Adicionar freebet</span>
+      <button class="icon-sq-btn" id="quickFreebetCloseX" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
+    </div>
+    <div class="field" style="margin-bottom:14px;">
+      <label>Casa de apostas</label>
+      <input type="text" id="qfCasa" list="casaList" placeholder="Ex: PIXBET">
+    </div>
+    <div class="field" style="margin-bottom:18px;">
+      <label>Valor da freebet (R$)</label>
+      <input type="number" id="qfValor" step="0.01" placeholder="0,00">
+    </div>
+    <button class="btn btn-blue" id="qfSalvar" style="width:100%; padding:10px 0;">Salvar freebet</button>
+  </div>
+</div>
+
 <div class="main">
 <header>
   <div class="brand">
@@ -402,7 +420,7 @@
   </div>
   <button class="btn btn-blue" id="btnAdicionarAposta" style="display:flex; align-items:center; gap:6px;">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-    Adicionar aposta
+    <span id="btnAdicionarApostaLabel">Adicionar aposta</span>
   </button>
 </header>
 
@@ -776,13 +794,16 @@
     });
   }
 
+  let currentView = 'dashboard';
   function showView(view){
+    currentView = view;
     $('viewDashboard').style.display = view==='dashboard' ? 'block' : 'none';
     $('viewBankrolls').style.display = view==='bankrolls' ? 'block' : 'none';
     $('viewFreebets').style.display = view==='freebets' ? 'block' : 'none';
     $('sideDashboardBtn').classList.toggle('active', view==='dashboard');
     $('sideBankrollsBtn').classList.toggle('active', view==='bankrolls');
     $('sideFreebetsBtn').classList.toggle('active', view==='freebets');
+    $('btnAdicionarApostaLabel').textContent = view==='freebets' ? 'Adicionar freebet' : 'Adicionar aposta';
   }
 
   function freebetsPendentes(){
@@ -997,6 +1018,7 @@
     return DIAS[dt.getUTCDay()] + ' ' + String(d).padStart(2,'0');
   }
   function horaOf(op){
+    if(op.detalhe && op.detalhe.hora_operacao) return op.detalhe.hora_operacao;
     if(!op.criado_em) return '--:--';
     const dt = new Date(op.criado_em);
     if(isNaN(dt.getTime())) return '--:--';
@@ -1422,6 +1444,7 @@
     function syncFormIntoWorking(){
       // sincroniza campos do topo/operação 1 de volta pro objeto `op`, senão eles somem ao re-renderizar
       if($('em_data')) op.data_operacao = $('em_data').value || null;
+      if($('em_hora')){ op.detalhe = op.detalhe || {}; op.detalhe.hora_operacao = $('em_hora').value || null; }
       if($('em_nome')) op.nome = $('em_nome').value || null;
       if($('em_casa')) op.casa = $('em_casa').value || null;
       if(Array.isArray(workingPernas)){
@@ -1461,6 +1484,7 @@
     function render(){
       let html = `<div class="filter-row" style="margin-bottom:16px;">
         <div class="field"><label>Data</label><input type="date" class="mini-input wide" id="em_data" value="${op.data_operacao||''}"></div>
+        <div class="field"><label>Horário</label><input type="time" class="mini-input wide" id="em_hora" value="${(op.detalhe && op.detalhe.hora_operacao) || ''}"></div>
       </div>`;
 
       if(Array.isArray(workingPernas)){
@@ -1686,6 +1710,7 @@
         const txtOrNull = id => { const el = document.getElementById(id); return el ? (el.value||null) : null; };
 
         let detalhe = op.detalhe || {};
+        detalhe.hora_operacao = txtOrNull('em_hora');
         const payload = {
           data_operacao: txtOrNull('em_data'),
           casa: txtOrNull('em_casa'),
@@ -1736,6 +1761,7 @@
           }
         } else {
           payload.status = op.status || 'pendente';
+          payload.detalhe = detalhe;
         }
 
         if(isNew){
@@ -1837,8 +1863,41 @@
 
   $('btnAdicionarAposta').onclick = ()=>{
     if(!client){ alert('Conecte o painel ao Supabase primeiro.'); return; }
-    openNewOperationModal();
+    if(currentView==='freebets'){ openQuickFreebetModal(); }
+    else { openNewOperationModal(); }
   };
+
+  function openQuickFreebetModal(){
+    $('qfCasa').value = '';
+    $('qfValor').value = '';
+    $('quickFreebetModal').classList.add('open');
+    $('qfCasa').focus();
+  }
+  $('quickFreebetCloseX').onclick = ()=> $('quickFreebetModal').classList.remove('open');
+  $('quickFreebetModal').addEventListener('click', e=>{ if(e.target.id==='quickFreebetModal') $('quickFreebetModal').classList.remove('open'); });
+
+  $('qfSalvar').onclick = async ()=>{
+    const casa = $('qfCasa').value.trim();
+    const valor = $('qfValor').value==='' ? null : parseFloat($('qfValor').value);
+    if(!casa){ alert('Informa a casa de apostas.'); return; }
+    if(valor==null || isNaN(valor)){ alert('Informa o valor da freebet.'); return; }
+    const payload = {
+      data_operacao: new Date().toISOString().slice(0,10),
+      casa,
+      nome: 'Freebet',
+      investimento: valor,
+      status: 'pendente',
+      bankroll: activeBankroll,
+      detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false } }
+    };
+    const { error } = await client.from('operacoes').insert(payload);
+    if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    $('quickFreebetModal').classList.remove('open');
+    await loadOps();
+    renderFreebetsList();
+    updateFreebetsBadge();
+  };
+
   initConn();
 })();
 </script>
