@@ -119,11 +119,9 @@
   .bankroll-card:hover{border-color:var(--blue);}
 
   .freebet-card{
-    display:flex; align-items:center; gap:12px; padding:10px 14px;
+    display:flex; flex-direction:column; gap:8px; padding:14px 16px;
     background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
-    margin-bottom:10px;
   }
-  .freebet-card:last-child{margin-bottom:0;}
   .freebet-card.pending{border-color:var(--green);}
   .card .label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-bottom:8px;}
   .card .value{font-family:'JetBrains Mono'; font-size:26px; font-weight:700;}
@@ -505,6 +503,7 @@
   const openMonths = new Set();
   const closedWeeks = new Set();
   const closedDays = new Set();
+  let monthsAutoOpened = false;
 
   // ---- Bankrolls ----
   const BANKROLLS_KEY = 'duploGreenBankrolls';
@@ -806,15 +805,17 @@
     }
 
     function linha(o, pendente){
-      return `<div class="freebet-card ${pendente?'pending':''}">
-        ${casaBadgeHtml(o.casa, 26)}
-        <div class="casa-name">${o.casa||'Sem casa'}</div>
-        <div class="op-time">${dataCurtaOf(o.data_operacao)}</div>
-        <div class="op-nome">${o.nome||'—'}</div>
-        <div class="op-actions">
+      return `<div class="card freebet-card ${pendente?'pending':''}">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          ${casaBadgeHtml(o.casa, 26)}
           ${pendente
-            ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:6px 14px; width:auto;">Marcar como usada</button>`
+            ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
             : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
+        </div>
+        <div class="casa-name" style="font-size:13px; font-weight:700; color:var(--text);">${o.casa||'Sem casa'}</div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="op-nome" style="font-size:11.5px; color:var(--muted);">${o.nome||'—'}</div>
+          <div class="op-time" style="font-size:10.5px; color:var(--muted); font-family:'JetBrains Mono';">${dataCurtaOf(o.data_operacao)}</div>
         </div>
       </div>`;
     }
@@ -822,11 +823,11 @@
     let html = '';
     if(pendentes.length){
       html += `<div class="panel-title" style="margin-bottom:10px;"><span class="left">🎁 Pendentes de usar (${pendentes.length})</span></div>
-        ${pendentes.map(o=>linha(o,true)).join('')}`;
+        <div class="cards" style="grid-template-columns:repeat(3,1fr); margin-bottom:0;">${pendentes.map(o=>linha(o,true)).join('')}</div>`;
     }
     if(usadas.length){
       html += `<div class="panel-title" style="margin:${pendentes.length?'20px':'0'} 0 10px;"><span class="left">Já usadas (histórico)</span></div>
-        ${usadas.map(o=>linha(o,false)).join('')}`;
+        <div class="cards" style="grid-template-columns:repeat(3,1fr); margin-bottom:0;">${usadas.map(o=>linha(o,false)).join('')}</div>`;
     }
     wrap.innerHTML = html;
 
@@ -1071,7 +1072,7 @@
     if(filtered.length===0){ wrap.innerHTML = '<div class="empty">Nenhuma operação encontrada para o filtro atual.</div>'; return; }
 
     const months = buildGroups(filtered);
-    if(months.length>0 && openMonths.size===0) openMonths.add(months[0].key);
+    if(months.length>0 && !monthsAutoOpened){ openMonths.add(months[0].key); monthsAutoOpened = true; }
 
     function pillCls(v){ return v>0?'pos':(v<0?'neg':'zero'); }
 
