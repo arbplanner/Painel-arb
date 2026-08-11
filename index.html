@@ -780,7 +780,7 @@
       };
     });
     grid.querySelectorAll('[data-bankrollgear]').forEach(btn=>{
-      btn.onclick = (e)=>{
+      btn.onclick = async (e)=>{
         e.stopPropagation();
         const name = btn.dataset.bankrollgear;
         const novo = prompt('Renomear bankroll (deixe igual pra manter):', name);
@@ -790,10 +790,22 @@
         let list = loadBankrolls();
         if(trimmed!==name){
           if(list.includes(trimmed)){ alert('Já existe um bankroll com esse nome.'); return; }
+          if(!client){ alert('Conecte ao Supabase antes de renomear, pra não perder o vínculo das operações já salvas.'); return; }
+          btn.disabled = true;
+          // reatribui no banco TODAS as operações que estavam sob o nome antigo, antes de renomear
+          const { error: e1 } = await client.from('operacoes').update({ bankroll: trimmed }).eq('bankroll', name);
+          let e2 = null;
+          if(name === 'Teste'){
+            // operações antigas sem bankroll definido caíam em "Teste" só por padrão de exibição — também precisam ser migradas
+            const r2 = await client.from('operacoes').update({ bankroll: trimmed }).is('bankroll', null);
+            e2 = r2.error;
+          }
+          if(e1 || e2){ alert('Erro ao atualizar as operações no banco: ' + ((e1||e2).message) + '. O bankroll NÃO foi renomeado, pra não perder o vínculo.'); btn.disabled = false; return; }
           list = list.map(n=>n===name?trimmed:n);
           saveBankrolls(list);
           if(activeBankroll===name) setActiveBankroll(trimmed);
-          renderBankrollsGrid();
+          await loadOps();
+          renderCards(); renderAll(); renderBankrollsGrid(); updateFreebetsBadge();
         }
       };
     });
