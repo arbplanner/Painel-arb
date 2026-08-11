@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Duplo Green — Proteção de Cash-Out</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='5' fill='%2312161e'/%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' fill='none' stroke='%23f2a93c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0d12; --panel:#12161e; --panel-2:#161b25; --line:#232a37;
+    --text:#e7eaf0; --muted:#7b869b; --green:#2fd487; --green-dim:#173327;
+    --red:#ff5c6c; --red-dim:#33191d; --amber:#f2a93c; --amber-dim:#332711;
+    --blue:#5b9dff; --radius:12px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, rgba(242,169,60,0.06), transparent),
+      radial-gradient(ellipse 900px 500px at 100% 0%, rgba(91,157,255,0.06), transparent),
+      var(--bg);
+    color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; padding-bottom:60px;
+  }
+  .num{font-family:'JetBrains Mono',monospace;}
+  header{
+    padding:24px 32px 18px; display:flex; align-items:baseline; gap:12px;
+    border-bottom:1px solid var(--line);
+  }
+  header .mark{font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.02em; color:var(--amber);}
+  header .sub{color:var(--muted); font-size:13px;}
+
+  .layout{display:grid; grid-template-columns:340px 1fr; gap:22px; padding:22px 28px; align-items:start;}
+  @media (max-width:960px){ .layout{grid-template-columns:1fr;} }
+
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px;}
+  .config-panel{position:sticky; top:20px;}
+  .config-eyebrow{
+    display:inline-block; background:var(--amber-dim); color:var(--amber);
+    font-size:10px; font-weight:700; letter-spacing:.08em; padding:4px 10px; border-radius:20px; margin-bottom:12px;
+  }
+  .config-title{font-family:'Space Grotesk'; font-size:17px; font-weight:600; margin-bottom:4px;}
+  .config-desc{font-size:12px; color:var(--muted); margin-bottom:20px; line-height:1.5;}
+
+  .field{display:flex; flex-direction:column; gap:6px; margin-bottom:16px;}
+  .field-head{display:flex; justify-content:space-between; align-items:baseline;}
+  .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:600;}
+  .field .live-val{font-family:'JetBrains Mono'; font-size:11px; color:var(--amber); font-weight:600;}
+  .field input[type=number], .field input[type=text]{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); padding:10px 12px; font-family:'JetBrains Mono',monospace; font-size:15px; width:100%;
+  }
+  .field input:focus{outline:none; border-color:var(--amber);}
+
+  .checkfield-row{display:flex; align-items:center; gap:8px; margin-bottom:14px;}
+  .checkfield-row input[type=checkbox]{width:16px; height:16px; accent-color:var(--amber); cursor:pointer;}
+  .checkfield-row label{font-size:12px; color:var(--text); user-select:none; cursor:pointer;}
+  .jacobriu-box{display:none; background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:16px;}
+  .jacobriu-box.show{display:block;}
+
+  .btn-reset{
+    width:100%; padding:11px 0; border-radius:9px; border:1px solid var(--line); background:var(--panel-2);
+    color:var(--text); font-weight:600; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-reset:hover{border-color:var(--red); color:var(--red);}
+
+  /* Right side: filters + cards */
+  .filter-row{display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .filter-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-right:4px;}
+  .filter-tab{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+    font-size:11.5px; font-weight:700; letter-spacing:.02em; padding:8px 16px; border-radius:8px; cursor:pointer;
+  }
+  .filter-tab.active{background:var(--amber); color:#241a05; border-color:var(--amber);}
+  .filter-tab:hover:not(.active){color:var(--text); border-color:var(--muted);}
+
+  .strategy-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px 22px; margin-bottom:18px;
+  }
+  .strategy-card.dimmed{opacity:.4;}
+  .sc-head{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px; flex-wrap:wrap;}
+  .sc-title-row{display:flex; align-items:center; gap:12px;}
+  .sc-num{
+    width:30px; height:30px; border-radius:8px; background:var(--amber-dim); color:var(--amber);
+    display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono'; font-weight:700; font-size:13px; flex-shrink:0;
+  }
+  .sc-title{font-family:'Space Grotesk'; font-weight:700; font-size:16px; letter-spacing:-0.01em;}
+  .sc-tagline{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:2px;}
+  .sc-badges{display:flex; gap:8px; flex-wrap:wrap;}
+  .sc-badge{
+    font-size:10px; font-weight:700; letter-spacing:.03em; padding:4px 10px; border-radius:20px;
+    background:var(--panel-2); color:var(--muted); border:1px solid var(--line); white-space:nowrap;
+  }
+  .sc-badge.foco{background:var(--amber-dim); color:var(--amber); border-color:transparent;}
+  .sc-desc{font-size:12.5px; color:var(--muted); line-height:1.55; margin-bottom:18px;}
+
+  .sc-stats{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px;}
+  @media (max-width:700px){ .sc-stats{grid-template-columns:1fr;} }
+  .sc-stat .k{font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:700; letter-spacing:.04em; margin-bottom:4px;}
+  .sc-stat .v{font-family:'JetBrains Mono'; font-weight:700; font-size:19px;}
+  .sc-stat .v.amber{color:var(--amber);}
+  .sc-stat .v.neg{color:var(--red);}
+  .sc-stat .hint{font-size:10.5px; color:var(--muted); margin-top:3px;}
+
+  .sc-scenarios{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media (max-width:700px){ .sc-scenarios{grid-template-columns:1fr;} }
+  .sc-scen .label{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text); font-weight:600; margin-bottom:6px;}
+  .sc-scen .dot{width:6px; height:6px; border-radius:50%;}
+  .sc-scen.dg .dot{background:var(--green);}
+  .sc-scen.nao .dot{background:var(--amber);}
+  .sc-scen .val{font-family:'JetBrains Mono'; font-weight:700; font-size:16px; float:right;}
+  .bar-track{background:var(--panel-2); border-radius:6px; height:8px; overflow:hidden; margin:6px 0;}
+  .bar-fill{height:100%; border-radius:6px;}
+  .bar-fill.dg{background:var(--green);}
+  .bar-fill.nao{background:var(--amber);}
+  .sc-scen .caption{font-size:10.5px; color:var(--muted);}
+
+  /* custom slider inline inside its own card */
+  .custom-slider-wrap{margin-bottom:18px;}
+  input[type=range]{width:100%; accent-color:var(--amber); margin:8px 0 4px;}
+  .slider-labels{display:flex; justify-content:space-between; font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em;}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="mark">🛡 PROTEÇÃO DUPLO GREEN</span>
+  <span class="sub">calculadora de cash-out parcial</span>
+</header>
+
+<div class="layout">
+  <!-- Config panel -->
+  <div class="panel config-panel">
+    <span class="config-eyebrow">PAINEL DE CONFIGURAÇÃO</span>
+    <div class="config-title">Parâmetros de Entrada</div>
+    <div class="config-desc">Defina as variáveis para calcular automaticamente as estratégias.</div>
+
+    <div class="field">
+      <div class="field-head"><label>Valor Duplo Green</label><span class="live-val num" id="dgLive">—</span></div>
+      <input type="number" id="dgValue" placeholder="Ex: 64,88" step="0.01">
+    </div>
+    <div class="field">
+      <div class="field-head"><label>Cotação atual (odd de proteção)</label><span class="live-val num" id="oddLive">—</span></div>
+      <input type="number" id="oddAtual" placeholder="Ex: 3.24" step="0.01">
+    </div>
+    <div class="field">
+      <div class="field-head"><label>Lucro/prejuízo já travado</label><span class="live-val num" id="plLive">—</span></div>
+      <input type="number" id="plAtual" placeholder="0 (negativo = prejuízo)" step="0.01" value="0">
+    </div>
+
+    <div class="checkfield-row">
+      <input type="checkbox" id="jaCobriuToggle">
+      <label for="jaCobriuToggle">Já fiz uma cobertura parcial antes (em outra odd)</label>
+    </div>
+    <div class="jacobriu-box" id="jaCobriuBox">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Stake já apostado</label>
+        <input type="number" id="stake1" placeholder="Ex: 10,03" step="0.01" value="0">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Odd usada nessa cobertura</label>
+        <input type="number" id="odd1" placeholder="Ex: 3.24" step="0.01">
+      </div>
+    </div>
+
+    <button class="btn-reset" id="btnReset">🗑 Redefinir simulador</button>
+  </div>
+
+  <!-- Strategy cards -->
+  <div>
+    <div class="filter-row">
+      <span class="filter-label">Filtrar visão:</span>
+      <button class="filter-tab active" data-filter="todas">TODAS</button>
+      <button class="filter-tab" data-filter="100">BLINDAGEM TOTAL</button>
+      <button class="filter-tab" data-filter="50">METADE</button>
+      <button class="filter-tab" data-filter="custom">PERSONALIZADA</button>
+    </div>
+
+    <div id="cardsWrap"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const fmt = n => (n==null||isNaN(n)) ? '—' : ((n<0?'-':'') + 'R$ ' + Math.abs(n).toFixed(2).replace('.', ','));
+  const fmtOdd = n => (n==null||isNaN(n)) ? '—' : '@'+n.toFixed(2).replace('.', ',');
+
+  let activeFilter = 'todas';
+
+  document.querySelectorAll('.filter-tab').forEach(tab=>{
+    tab.onclick = ()=>{
+      document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      activeFilter = tab.dataset.filter;
+      render();
+    };
+  });
+
+  $('jaCobriuToggle').onchange = e=>{ $('jaCobriuBox').classList.toggle('show', e.target.checked); render(); };
+  $('btnReset').onclick = ()=>{
+    $('dgValue').value=''; $('oddAtual').value=''; $('plAtual').value='0';
+    $('jaCobriuToggle').checked=false; $('jaCobriuBox').classList.remove('show');
+    $('stake1').value='0'; $('odd1').value='';
+    customPct = 100;
+    render();
+  };
+
+  let customPct = 100;
+
+  function calc(pct){
+    const DG = parseFloat($('dgValue').value)||0;
+    const odd = parseFloat($('oddAtual').value)||0;
+    const PL = parseFloat($('plAtual').value)||0;
+    const jaCobriu = $('jaCobriuToggle').checked;
+    const stake1 = jaCobriu ? (parseFloat($('stake1').value)||0) : 0;
+    const odd1 = jaCobriu ? (parseFloat($('odd1').value)||0) : 0;
+    const retorno1 = stake1*odd1;
+
+    if(odd<=0 || DG===0) return null;
+
+    const fullStake = (DG - PL - retorno1) / odd;
+    const S = fullStake * (pct/100);
+    const scenDG = DG - stake1 - S;
+    const scenNao = stake1*(odd1-1) + S*(odd-1) + PL;
+    return {DG, odd, PL, jaCobriu, stake1, odd1, retorno1, S, scenDG, scenNao};
+  }
+
+  function scenarioBars(r){
+    const max = Math.max(Math.abs(r.scenDG), Math.abs(r.scenNao), 1);
+    const wDG = Math.max(6, Math.min(100, Math.abs(r.scenDG)/max*100));
+    const wNao = Math.max(6, Math.min(100, Math.abs(r.scenNao)/max*100));
+    return `
+      <div class="sc-scenarios">
+        <div class="sc-scen dg">
+          <div class="label"><span class="dot"></span>Se sair o Duplo Green<span class="val ${r.scenDG<0?'neg':''}" style="color:${r.scenDG<0?'var(--red)':'var(--green)'}">${fmt(r.scenDG)}</span></div>
+          <div class="bar-track"><div class="bar-fill dg" style="width:${wDG}%"></div></div>
+          <div class="caption">Ganho do Duplo Green deduzindo o custo desta cobertura.</div>
+        </div>
+        <div class="sc-scen nao">
+          <div class="label"><span class="dot"></span>Se NÃO sair o Duplo Green<span class="val" style="color:${r.scenNao<0?'var(--red)':'var(--amber)'}">${fmt(r.scenNao)}</span></div>
+          <div class="bar-track"><div class="bar-fill nao" style="width:${wNao}%"></div></div>
+          <div class="caption">Retorno garantido pela cobertura desta odd.</div>
+        </div>
+      </div>`;
+  }
+
+  function statBlock(label, value, hint, cls){
+    return `<div class="sc-stat"><div class="k">${label}</div><div class="v ${cls||''}">${value}</div>${hint?`<div class="hint">${hint}</div>`:''}</div>`;
+  }
+
+  function cardHTML(num, title, tagline, desc, focoLabel, r, extraStatLabel, extraStatVal){
+    if(!r){
+      return `<div class="strategy-card"><div class="sc-head"><div class="sc-title-row"><div class="sc-num">${num}</div><div><div class="sc-title">${title}</div><div class="sc-tagline">${tagline}</div></div></div></div><div class="sc-desc">${desc}</div><div class="sc-desc" style="color:var(--muted);">Preencha o Valor Duplo Green e a odd atual para calcular.</div></div>`;
+    }
+    return `
+      <div class="strategy-card">
+        <div class="sc-head">
+          <div class="sc-title-row">
+            <div class="sc-num">${num}</div>
+            <div><div class="sc-title">${title}</div><div class="sc-tagline">${tagline}</div></div>
+          </div>
+          <div class="sc-badges">
+            <span class="sc-badge">MODO: BACK</span>
+            <span class="sc-badge foco">${focoLabel}</span>
+          </div>
+        </div>
+        <div class="sc-desc">${desc}</div>
+        <div class="sc-stats">
+          ${statBlock('Aposta de cobertura', fmt(r.S), 'Dinheiro a ser aplicado', r.S<0?'neg':'amber')}
+          ${statBlock(extraStatLabel, extraStatVal, null, '')}
+          ${statBlock('Alvo coberto do Duplo Green', fmt(r.DG), 'Retorno bruto almejado', 'amber')}
+        </div>
+        ${scenarioBars(r)}
+      </div>`;
+  }
+
+  function render(){
+    const DG = parseFloat($('dgValue').value)||0;
+    const odd = parseFloat($('oddAtual').value)||0;
+    const PL = parseFloat($('plAtual').value)||0;
+    $('dgLive').textContent = DG? fmt(DG) : '—';
+    $('oddLive').textContent = odd? fmtOdd(odd) : '—';
+    $('plLive').textContent = (PL!==0) ? fmt(PL) : '—';
+
+    const r100 = calc(100);
+    const r50 = calc(50);
+    const rCustom = calc(customPct);
+
+    const card100 = cardHTML(
+      '01','BLINDAGEM INTEGRADA 100%','ANULAÇÃO DE VOLATILIDADE',
+      'Ideal para garantir e fechar lucros travados, eliminando totalmente a volatilidade se o cenário do duplo green falhar.',
+      'FOCO: SEGURANÇA MÁXIMA', r100,
+      'Total investido nesta cobertura', r100? fmt(r100.stake1 + Math.max(r100.S,0)) : '—'
+    );
+
+    const card50 = cardHTML(
+      '02','FRAÇÃO PROTETORA 50%','PONTO DE EQUILÍBRIO',
+      'Reduz o custo inicial da proteção pela metade, permitindo que você extraia mais valor do duplo green, mas mantendo um retorno parcial garantido caso ele não venha.',
+      'FOCO: ALAVANCAGEM EQUILIBRADA', r50,
+      'Exposição de banca', r50? fmt(r50.S) : '—'
+    );
+
+    let card3;
+    if(!rCustom){
+      card3 = cardHTML('03','PROTEÇÃO PERSONALIZADA','AJUSTE LIVRE', 'Arraste o nível de proteção para qualquer ponto entre 0% e 100%.', 'FOCO: SOB MEDIDA', null);
+    } else {
+      card3 = `
+      <div class="strategy-card">
+        <div class="sc-head">
+          <div class="sc-title-row">
+            <div class="sc-num">03</div>
+            <div><div class="sc-title">PROTEÇÃO PERSONALIZADA</div><div class="sc-tagline">AJUSTE LIVRE — ${customPct}%</div></div>
+          </div>
+          <div class="sc-badges"><span class="sc-badge">MODO: BACK</span><span class="sc-badge foco">FOCO: SOB MEDIDA</span></div>
+        </div>
+        <div class="sc-desc">Arraste para qualquer nível entre 0% (sem proteção) e 100% (blindagem total) e veja os dois cenários se ajustarem em tempo real.</div>
+        <div class="custom-slider-wrap">
+          <input type="range" id="customSlider" min="0" max="100" value="${customPct}">
+          <div class="slider-labels"><span>0% — sem proteção</span><span>100% — blindagem total</span></div>
+        </div>
+        <div class="sc-stats">
+          ${statBlock('Aposta de cobertura', fmt(rCustom.S), 'Dinheiro a ser aplicado', rCustom.S<0?'neg':'amber')}
+          ${statBlock('Nível de proteção', customPct+'%', null, '')}
+          ${statBlock('Alvo coberto do Duplo Green', fmt(rCustom.DG), 'Retorno bruto almejado', 'amber')}
+        </div>
+        ${scenarioBars(rCustom)}
+      </div>`;
+    }
+
+    const cards = [
+      {key:'100', html:card100},
+      {key:'50', html:card50},
+      {key:'custom', html:card3}
+    ];
+
+    $('cardsWrap').innerHTML = cards
+      .filter(c => activeFilter==='todas' || activeFilter===c.key)
+      .map(c => c.html)
+      .join('');
+
+    const slider = $('customSlider');
+    if(slider){
+      slider.oninput = (e)=>{ customPct = parseInt(e.target.value); render(); };
+    }
+  }
+
+  ['dgValue','oddAtual','plAtual','stake1','odd1'].forEach(id=>{
+    $(id).oninput = render;
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
