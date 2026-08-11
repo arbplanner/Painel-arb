@@ -829,9 +829,12 @@
       return `<div class="card freebet-card ${pendente?'pending':''}">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           ${casaBadgeHtml(o.casa, 26)}
-          ${pendente
-            ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
-            : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${pendente
+              ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
+              : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
+            <button class="icon-sq-btn danger" data-freebetdel="${o.id}" title="Apagar freebet" style="width:26px; height:26px;">${ICON_TRASH}</button>
+          </div>
         </div>
         <div class="casa-name" style="font-size:13px; font-weight:700; color:var(--text);">${o.casa||'Sem casa'}</div>
         <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -863,6 +866,16 @@
         else await loadOps();
       };
     });
+
+    wrap.querySelectorAll('[data-freebetdel]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const id = btn.dataset.freebetdel;
+        if(!confirm('Apagar esta freebet? Essa ação não pode ser desfeita.')) return;
+        const { error } = await client.from('operacoes').delete().eq('id', id);
+        if(error) alert('Erro ao apagar: ' + error.message);
+        else { await loadOps(); renderFreebetsList(); updateFreebetsBadge(); }
+      };
+    });
   }
 
   function updateFreebetsBadge(){
@@ -890,8 +903,7 @@
   }
 
   function renderCards(){
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0,10);
+    const todayStr = hojeBrasilia();
     const monthStr = todayStr.slice(0,7);
     const yearStr = todayStr.slice(0,4);
     const list = bankrollOps();
@@ -925,8 +937,7 @@
   function getFilteredOps(){
     const periodo = $('fPeriodo').value;
     const status = $('fStatus').value;
-    const today = new Date();
-    const todayStr = today.toISOString().slice(0,10);
+    const todayStr = hojeBrasilia();
     const monthStr = todayStr.slice(0,7);
     const yearStr = todayStr.slice(0,4);
     const de = $('fCustomDe').value;
@@ -1017,12 +1028,19 @@
     const dt = new Date(Date.UTC(y,m-1,d));
     return DIAS[dt.getUTCDay()] + ' ' + String(d).padStart(2,'0');
   }
+  function hojeBrasilia(){
+    // formato YYYY-MM-DD já no fuso de Brasília, independente do fuso do navegador/servidor
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  }
+  function agoraHoraBrasilia(){
+    return new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
+  }
   function horaOf(op){
     if(op.detalhe && op.detalhe.hora_operacao) return op.detalhe.hora_operacao;
     if(!op.criado_em) return '--:--';
     const dt = new Date(op.criado_em);
     if(isNaN(dt.getTime())) return '--:--';
-    return String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0');
+    return dt.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hour12: false });
   }
   function casaColor(casa){
     if(!casa) return '#3a4356';
@@ -1838,13 +1856,13 @@
   function openNewOperationModal(){
     openEditModal({
       id: null,
-      data_operacao: new Date().toISOString().slice(0,10),
+      data_operacao: hojeBrasilia(),
       casa: null,
       nome: '',
       investimento: null,
       status: 'pendente',
       lucro_real: null,
-      detalhe: { pernas: [], multipla: {} }
+      detalhe: { pernas: [], multipla: {}, hora_operacao: agoraHoraBrasilia() }
     });
   }
 
@@ -1882,13 +1900,13 @@
     if(!casa){ alert('Informa a casa de apostas.'); return; }
     if(valor==null || isNaN(valor)){ alert('Informa o valor da freebet.'); return; }
     const payload = {
-      data_operacao: new Date().toISOString().slice(0,10),
+      data_operacao: hojeBrasilia(),
       casa,
       nome: 'Freebet',
       investimento: valor,
       status: 'pendente',
       bankroll: activeBankroll,
-      detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false } }
+      detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false }, hora_operacao: agoraHoraBrasilia() }
     };
     const { error } = await client.from('operacoes').insert(payload);
     if(error){ alert('Erro ao salvar: ' + error.message); return; }
