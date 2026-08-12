@@ -650,10 +650,10 @@
   function computeOpTotal(op){
     const detalhe = op.detalhe || {};
     const pernas = detalhe.pernas || [];
-    if(!pernas.length){
-      return { total: null, allResolved: false }; // ops simples usam status/lucro_real direto, não passam por aqui
-    }
     const mult = detalhe.multipla || {};
+    if(!pernas.length && mult.odd==null){
+      return { total: null, allResolved: false }; // sem odd nem pernas: não dá pra calcular automaticamente
+    }
     let total = 0, allResolved = true;
     const oddCombinada = mult.odd!=null ? mult.odd : pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
     const mProfit = (mult.status_final==='perdida' && mult.freebet) ? 0 : pernaProfit(op.investimento, oddCombinada, mult.status_final, 'back', null);
@@ -1533,7 +1533,9 @@
     </span>` : '';
     const statusBadgeHtml = (pernas && pernas.length)
       ? statusBadge
-      : `<span data-qmenutrigger="simples" data-opid="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`;
+      : (mult0.odd!=null
+          ? `<span data-qmenutrigger="multipla" data-opid="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`
+          : `<span data-qmenutrigger="simples" data-opid="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`);
     return `<div class="op-row-wrap">
     <div class="op-row" ${rowClickAttr} style="${pernas && pernas.length ? 'cursor:pointer;' : ''}">
       ${expandBtn}
