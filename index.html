@@ -125,6 +125,11 @@
     background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
   }
   .freebet-card.pending{border-color:var(--green);}
+  .freebet-card.pending.stale{border-color:var(--amber); box-shadow:0 0 0 1px rgba(242,169,60,.35);}
+  .freebet-stale-tag{
+    display:inline-flex; align-items:center; gap:4px; font-size:10px; font-weight:700; color:var(--amber);
+    background:var(--amber-dim); border:1px solid var(--amber); border-radius:20px; padding:2px 8px;
+  }
   .card .label{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; margin-bottom:8px;}
   .card .value{font-family:'JetBrains Mono'; font-size:26px; font-weight:700;}
   .card .sub{font-size:11.5px; color:var(--muted); margin-top:6px;}
@@ -289,9 +294,67 @@
   .icon-sq-btn svg{width:14px; height:14px;}
   .icon-sq-btn:hover{color:var(--text); border-color:var(--blue);}
   .icon-sq-btn.danger:hover{color:var(--red); border-color:var(--red);}
+
+  /* ---- Toasts ---- */
+  #toastWrap{
+    position:fixed; bottom:20px; right:20px; z-index:999; display:flex; flex-direction:column; gap:8px;
+    max-width:340px;
+  }
+  .toast{
+    display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:9px;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text); font-size:12.5px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4); animation:toastIn .18s ease-out; line-height:1.4;
+  }
+  @keyframes toastIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  .toast.ok{border-color:var(--green);}
+  .toast.ok .toast-dot{background:var(--green);}
+  .toast.err{border-color:var(--red);}
+  .toast.err .toast-dot{background:var(--red);}
+  .toast.warn{border-color:var(--amber);}
+  .toast.warn .toast-dot{background:var(--amber);}
+  .toast-dot{width:7px; height:7px; border-radius:50%; flex-shrink:0; background:var(--muted);}
+  .toast-msg{flex:1;}
+  .toast-action{
+    background:none; border:1px solid var(--line); color:var(--text); border-radius:6px; padding:4px 10px;
+    font-size:11.5px; font-weight:700; cursor:pointer; flex-shrink:0;
+  }
+  .toast-action:hover{border-color:var(--blue); color:var(--blue);}
+
+  /* ---- Estado vazio ---- */
+  .empty-state{
+    padding:48px 24px; text-align:center; color:var(--muted); border:1px dashed var(--line); border-radius:var(--radius);
+  }
+  .empty-state .empty-title{font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px;}
+  .empty-state .empty-sub{font-size:12.5px; margin-bottom:16px;}
+
+  /* ---- Menu rápido de status ---- */
+  .status-badge{cursor:pointer;}
+  .status-quickmenu{
+    position:absolute; z-index:60; background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4); padding:4px; min-width:130px;
+  }
+  .status-quickmenu button{
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:7px 9px; border-radius:5px;
+    background:none; border:none; color:var(--text); font-size:12px; cursor:pointer; font-family:inherit;
+  }
+  .status-quickmenu button:hover{background:var(--panel);}
+
+  /* ---- Ranking por casa ---- */
+  .rank-row{
+    display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line);
+  }
+  .rank-row:last-child{border-bottom:none;}
+  .rank-pos{width:18px; flex-shrink:0; font-size:11px; color:var(--muted); font-weight:700;}
+  .rank-casaname{flex:1; font-size:12.5px; font-weight:600; color:var(--text);}
+  .rank-stats{display:flex; gap:18px; align-items:center;}
+  .rank-stat{text-align:right;}
+  .rank-stat .rank-stat-label{font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
+  .rank-stat .rank-stat-val{font-family:'JetBrains Mono'; font-size:12.5px; font-weight:700;}
 </style>
 </head>
 <body>
+
+<div id="toastWrap"></div>
 
 <aside class="sidebar">
   <div class="side-brand">ARBPLANNER</div>
@@ -488,6 +551,11 @@
     <div class="chart-wrap"><canvas id="chartLucro"></canvas></div>
   </div>
 
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-title"><span class="left"><span class="dot"></span> Ranking por casa (período filtrado)</span></div>
+    <div id="rankCasasWrap"></div>
+  </div>
+
   <div class="panel">
     <div class="panel-title"><span class="left"><span class="dot"></span> Operações</span></div>
     <div id="tableWrap">
@@ -520,9 +588,106 @@
   const $ = id => document.getElementById(id);
   const fmt = n => (n==null || isNaN(n)) ? '—' : ((n<0?'-':'') + 'R$ ' + Math.abs(n).toFixed(2).replace('.', ','));
 
+  // ---- Toasts ----
+  function showToast(msg, type, opts){
+    type = type || 'ok';
+    opts = opts || {};
+    const wrap = $('toastWrap');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<span class="toast-dot"></span><span class="toast-msg"></span>`;
+    el.querySelector('.toast-msg').textContent = msg;
+    if(opts.actionLabel && opts.onAction){
+      const btn = document.createElement('button');
+      btn.className = 'toast-action';
+      btn.textContent = opts.actionLabel;
+      btn.onclick = ()=>{ opts.onAction(); el.remove(); };
+      el.appendChild(btn);
+    }
+    wrap.appendChild(el);
+    const duration = opts.duration || (opts.actionLabel ? 5000 : 3200);
+    const timer = setTimeout(()=> el.remove(), duration);
+    if(opts.actionLabel){ el.dataset.timerId = timer; }
+    return el;
+  }
+
+  function softDeleteOp(op, onRefresh){
+    const id = String(op.id);
+    pendingDeleteIds.add(id);
+    onRefresh();
+    showToast('Operação apagada.', 'warn', {
+      actionLabel: 'Desfazer',
+      duration: 5000,
+      onAction: ()=>{ pendingDeleteIds.delete(id); onRefresh(); }
+    });
+    setTimeout(async ()=>{
+      if(!pendingDeleteIds.has(id)) return; // foi desfeito
+      const { error } = await client.from('operacoes').delete().eq('id', op.id);
+      pendingDeleteIds.delete(id);
+      if(error){ showToast('Erro ao apagar: ' + error.message, 'err', {duration:5000}); onRefresh(); }
+      else { await loadOps(); onRefresh(); }
+    }, 5000);
+  }
+
+  // ---- Menu rápido de status (clique no badge) ----
+  function closeStatusQuickMenu(){
+    const existing = document.querySelector('.status-quickmenu');
+    if(existing) existing.remove();
+  }
+  document.addEventListener('click', (e)=>{
+    if(!e.target.closest('.status-quickmenu') && !e.target.closest('[data-statusbadge]')) closeStatusQuickMenu();
+  });
+
+  function openStatusQuickMenu(badgeEl, op){
+    closeStatusQuickMenu();
+    const rect = badgeEl.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.className = 'status-quickmenu';
+    menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+    menu.style.left = (rect.left + window.scrollX) + 'px';
+    menu.innerHTML = `
+      <button data-qstatus="pendente">${ICON_PEND} Pendente</button>
+      <button data-qstatus="green">${ICON_CHECK} Green</button>
+      <button data-qstatus="red">${ICON_X} Red</button>
+    `;
+    document.body.appendChild(menu);
+
+    async function salvarDireto(payload){
+      closeStatusQuickMenu();
+      const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
+      if(error) showToast('Erro ao salvar: ' + error.message, 'err');
+      else { showToast('Status atualizado.', 'ok'); await loadOps(); }
+    }
+
+    menu.querySelector('[data-qstatus="pendente"]').onclick = ()=> salvarDireto({ status:'pendente', lucro_real:null });
+
+    ['green','red'].forEach(kind=>{
+      menu.querySelector(`[data-qstatus="${kind}"]`).onclick = ()=>{
+        menu.innerHTML = `
+          <div style="padding:6px 8px 8px;">
+            <div style="font-size:10.5px; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em;">Valor ${kind==='green'?'do lucro':'da perda'} (R$)</div>
+            <input type="number" step="0.01" id="qStatusValor" style="width:130px; background:var(--panel); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font-family:'JetBrains Mono'; font-size:12.5px; margin-bottom:6px;" placeholder="0,00">
+            <button class="btn btn-blue" id="qStatusSalvar" style="width:130px; padding:6px 0; font-size:12px;">Salvar</button>
+          </div>`;
+        const input = menu.querySelector('#qStatusValor');
+        input.focus();
+        const salvar = ()=>{
+          const raw = parseFloat(input.value);
+          if(isNaN(raw)){ showToast('Informa um valor.', 'warn'); return; }
+          const lucro = kind==='green' ? Math.abs(raw) : -Math.abs(raw);
+          salvarDireto({ status:'resolvida', lucro_real: lucro });
+        };
+        menu.querySelector('#qStatusSalvar').onclick = salvar;
+        input.addEventListener('click', e=> e.stopPropagation());
+        input.addEventListener('keydown', e=>{ if(e.key==='Enter') salvar(); });
+      };
+    });
+  }
+
   const CONN_KEY = 'duploGreenSupaConn_painel';
   let client = null;
   let ops = [];
+  const pendingDeleteIds = new Set();
   let chart = null;
   const openMonths = new Set();
   const closedWeeks = new Set();
@@ -547,7 +712,7 @@
     $('sideBankrollAtivo').textContent = name;
     $('headerBankrollAtivo').textContent = name;
   }
-  function bankrollOps(){ return ops.filter(o => (o.bankroll||'Teste') === activeBankroll); }
+  function bankrollOps(){ return ops.filter(o => (o.bankroll||'Teste') === activeBankroll && !pendingDeleteIds.has(String(o.id))); }
 
   const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
@@ -645,7 +810,7 @@
     const trimmed = nome.trim();
     if(!trimmed) return;
     const list = loadBankrolls();
-    if(list.includes(trimmed)){ alert('Já existe um bankroll com esse nome.'); return; }
+    if(list.includes(trimmed)){ showToast('Já existe um bankroll com esse nome.', 'warn'); return; }
     list.push(trimmed);
     saveBankrolls(list);
     renderBankrollsGrid();
@@ -790,8 +955,8 @@
         if(!trimmed) return;
         let list = loadBankrolls();
         if(trimmed!==name){
-          if(list.includes(trimmed)){ alert('Já existe um bankroll com esse nome.'); return; }
-          if(!client){ alert('Conecte ao Supabase antes de renomear, pra não perder o vínculo das operações já salvas.'); return; }
+          if(list.includes(trimmed)){ showToast('Já existe um bankroll com esse nome.', 'warn'); return; }
+          if(!client){ showToast('Conecte ao Supabase antes de renomear, pra não perder o vínculo das operações já salvas.', 'warn'); return; }
           btn.disabled = true;
           // reatribui no banco TODAS as operações que estavam sob o nome antigo, antes de renomear
           const { error: e1 } = await client.from('operacoes').update({ bankroll: trimmed }).eq('bankroll', name);
@@ -801,7 +966,7 @@
             const r2 = await client.from('operacoes').update({ bankroll: trimmed }).is('bankroll', null);
             e2 = r2.error;
           }
-          if(e1 || e2){ alert('Erro ao atualizar as operações no banco: ' + ((e1||e2).message) + '. O bankroll NÃO foi renomeado, pra não perder o vínculo.'); btn.disabled = false; return; }
+          if(e1 || e2){ showToast('Erro ao atualizar as operações no banco: ' + ((e1||e2).message) + '. O bankroll NÃO foi renomeado, pra não perder o vínculo.', 'err', {duration:6000}); btn.disabled = false; return; }
           list = list.map(n=>n===name?trimmed:n);
           saveBankrolls(list);
           if(activeBankroll===name) setActiveBankroll(trimmed);
@@ -825,7 +990,7 @@
   }
 
   function freebetsPendentes(){
-    return ops.filter(o => (o.bankroll||'Teste')===activeBankroll
+    return ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
       && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
       && !o.detalhe.multipla.freebet_usada_confirmada);
   }
@@ -834,7 +999,7 @@
     const wrap = $('freebetsList');
     if(!wrap) return;
     const pendentes = freebetsPendentes();
-    const usadas = ops.filter(o => (o.bankroll||'Teste')===activeBankroll
+    const usadas = ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
       && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
       && o.detalhe.multipla.freebet_usada_confirmada);
 
@@ -843,11 +1008,20 @@
       return;
     }
 
+    const FREEBET_STALE_DIAS = 5;
     function linha(o, pendente){
-      return `<div class="card freebet-card ${pendente?'pending':''}">
+      let diffDias = 0;
+      if(pendente && o.data_operacao){
+        const d1 = new Date(o.data_operacao+'T00:00:00');
+        const d0 = new Date(hojeBrasilia()+'T00:00:00');
+        diffDias = Math.floor((d0-d1)/86400000);
+      }
+      const stale = pendente && diffDias >= FREEBET_STALE_DIAS;
+      return `<div class="card freebet-card ${pendente?'pending':''} ${stale?'stale':''}">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           ${casaBadgeHtml(o.casa, 26)}
           <div style="display:flex; align-items:center; gap:6px;">
+            ${stale ? `<span class="freebet-stale-tag" title="Pendente de usar há ${diffDias} dias">⚠ ${diffDias}d</span>` : ''}
             ${pendente
               ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
               : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
@@ -880,18 +1054,17 @@
         if(!op) return;
         const novoDetalhe = { ...op.detalhe, multipla: { ...op.detalhe.multipla, freebet_usada_confirmada: true } };
         const { error } = await client.from('operacoes').update({ detalhe: novoDetalhe }).eq('id', id);
-        if(error) alert('Erro ao salvar: ' + error.message);
-        else await loadOps();
+        if(error) showToast('Erro ao salvar: ' + error.message, 'err');
+        else { showToast('Freebet marcada como usada.', 'ok'); await loadOps(); renderFreebetsList(); updateFreebetsBadge(); }
       };
     });
 
     wrap.querySelectorAll('[data-freebetdel]').forEach(btn=>{
-      btn.onclick = async ()=>{
+      btn.onclick = ()=>{
         const id = btn.dataset.freebetdel;
-        if(!confirm('Apagar esta freebet? Essa ação não pode ser desfeita.')) return;
-        const { error } = await client.from('operacoes').delete().eq('id', id);
-        if(error) alert('Erro ao apagar: ' + error.message);
-        else { await loadOps(); renderFreebetsList(); updateFreebetsBadge(); }
+        const op = ops.find(o=>String(o.id)===String(id));
+        if(!op) return;
+        softDeleteOp(op, ()=>{ renderFreebetsList(); updateFreebetsBadge(); });
       };
     });
   }
@@ -980,6 +1153,39 @@
   function renderAll(){
     renderGrouped();
     renderChart();
+    renderRankCasas();
+  }
+
+  function renderRankCasas(){
+    const wrap = $('rankCasasWrap');
+    if(!wrap) return;
+    const resolvidas = getFilteredOps().filter(o=>o.status==='resolvida' && o.lucro_real!=null);
+    if(!resolvidas.length){
+      wrap.innerHTML = '<div class="empty">Nenhuma operação resolvida no período filtrado ainda.</div>';
+      return;
+    }
+    const porCasa = {};
+    resolvidas.forEach(o=>{
+      const casa = o.casa || 'Sem casa';
+      if(!porCasa[casa]) porCasa[casa] = { lucro:0, investido:0, n:0 };
+      porCasa[casa].lucro += o.lucro_real;
+      porCasa[casa].investido += Math.abs(o.investimento||0);
+      porCasa[casa].n += 1;
+    });
+    const linhas = Object.entries(porCasa)
+      .map(([casa, s])=>({ casa, ...s, roi: s.investido>0 ? (s.lucro/s.investido*100) : 0 }))
+      .sort((a,b)=> b.lucro - a.lucro);
+
+    wrap.innerHTML = linhas.map((l,i)=>`<div class="rank-row">
+      <span class="rank-pos">#${i+1}</span>
+      ${casaBadgeHtml(l.casa, 22)}
+      <span class="rank-casaname">${l.casa}</span>
+      <div class="rank-stats">
+        <div class="rank-stat"><div class="rank-stat-label">Operações</div><div class="rank-stat-val">${l.n}</div></div>
+        <div class="rank-stat"><div class="rank-stat-label">ROI</div><div class="rank-stat-val" style="color:${l.roi>=0?'var(--green)':'var(--red)'}">${l.roi.toFixed(1)}%</div></div>
+        <div class="rank-stat"><div class="rank-stat-label">Lucro total</div><div class="rank-stat-val" style="color:${l.lucro>=0?'var(--green)':'var(--red)'}">${fmt(l.lucro)}</div></div>
+      </div>
+    </div>`).join('');
   }
 
   function renderChart(){
@@ -1129,6 +1335,15 @@
 
   function renderGrouped(){
     const wrap = $('tableWrap');
+    if(bankrollOps().length === 0){
+      wrap.innerHTML = `<div class="empty-state">
+        <div class="empty-title">Nenhuma operação neste bankroll ainda</div>
+        <div class="empty-sub">Adicione a primeira operação pra começar a acompanhar os resultados.</div>
+        <button class="btn btn-blue" id="emptyStateAddBtn">+ Adicionar aposta</button>
+      </div>`;
+      $('emptyStateAddBtn').onclick = ()=> $('btnAdicionarAposta').click();
+      return;
+    }
     const filtered = getFilteredOps();
     if(filtered.length===0){ wrap.innerHTML = '<div class="empty">Nenhuma operação encontrada para o filtro atual.</div>'; return; }
 
@@ -1255,6 +1470,9 @@
       ${usouFreebet ? `<span title="Operação feita usando freebet" style="font-size:12px;">🎟️</span>` : ''}
       ${geraFreebet ? `<span title="Essa operação vai gerar uma freebet" style="font-size:12px;">🎁</span>` : ''}
     </span>` : '';
+    const statusBadgeHtml = (pernas && pernas.length)
+      ? statusBadge
+      : `<span data-statusbadge="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`;
     return `<div class="op-row-wrap">
     <div class="op-row" ${rowClickAttr} style="${pernas && pernas.length ? 'cursor:pointer;' : ''}">
       ${expandBtn}
@@ -1263,7 +1481,7 @@
       <div class="casa-name">${op.casa || 'Sem casa'}${freebetIcons}</div>
       <div class="op-nome">${op.nome || '—'}</div>
       <div class="op-result">
-        ${statusBadge}
+        ${statusBadgeHtml}
         <span class="retorno-val ${retornoClass}">${retornoTxt}</span>
       </div>
       <div class="op-actions">
@@ -1276,6 +1494,14 @@
   }
 
   function bindGroupEvents(wrap){
+    wrap.querySelectorAll('[data-statusbadge]').forEach(el=>{
+      el.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        const op = ops.find(o=>String(o.id)===String(el.dataset.statusbadge));
+        if(op) openStatusQuickMenu(el, op);
+      });
+    });
+
     wrap.querySelectorAll('[data-monthtoggle]').forEach(h=>{
       h.onclick = ()=>{
         const key = h.dataset.monthtoggle;
@@ -1316,8 +1542,8 @@
         // atualiza todos os itens dessa perna (grupo) — o modal de edição trata a seleção como um valor único por perna
         const updatedPernas = op.detalhe.pernas.map(p=> p.perna_num===pernaNum ? {...p, selecao_multipla: inp.value||null} : p);
         const { error } = await client.from('operacoes').update({ detalhe: { ...op.detalhe, pernas: updatedPernas } }).eq('id', opId);
-        if(error) alert('Erro ao salvar: ' + error.message);
-        else await loadOps();
+        if(error) showToast('Erro ao salvar: ' + error.message, 'err');
+        else { showToast('Salvo.', 'ok'); await loadOps(); }
       });
     });
 
@@ -1341,11 +1567,11 @@
     });
 
     wrap.querySelectorAll('[data-delbtn]').forEach(btn=>{
-      btn.onclick = async ()=>{
+      btn.onclick = ()=>{
         const id = btn.dataset.delbtn;
-        if(!confirm('Apagar esta operação? Essa ação não pode ser desfeita.')) return;
-        const { error } = await client.from('operacoes').delete().eq('id', id);
-        if(!error) await loadOps(); else alert('Erro ao apagar: ' + error.message);
+        const op = ops.find(o=>String(o.id)===String(id));
+        if(!op) return;
+        softDeleteOp(op, ()=>{ renderCards(); renderAll(); updateFreebetsBadge(); });
       };
     });
   }
@@ -1809,12 +2035,12 @@
 
         if(isNew){
           const { error } = await client.from('operacoes').insert(payload);
-          if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
-          else alert('Erro ao salvar: ' + error.message);
+          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); }
+          else showToast('Erro ao salvar: ' + error.message, 'err');
         } else {
           const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
-          if(!error){ $('editModal').classList.remove('open'); await loadOps(); }
-          else alert('Erro ao salvar: ' + error.message);
+          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); }
+          else showToast('Erro ao salvar: ' + error.message, 'err');
         }
       };
     }
@@ -1905,7 +2131,7 @@
   $('headerBankrollAtivo').textContent = activeBankroll;
 
   $('btnAdicionarAposta').onclick = ()=>{
-    if(!client){ alert('Conecte o painel ao Supabase primeiro.'); return; }
+    if(!client){ showToast('Conecte o painel ao Supabase primeiro.', 'warn'); return; }
     if(currentView==='freebets'){ openQuickFreebetModal(); }
     else { openNewOperationModal(); }
   };
@@ -1922,8 +2148,8 @@
   $('qfSalvar').onclick = async ()=>{
     const casa = $('qfCasa').value.trim();
     const valor = $('qfValor').value==='' ? null : parseFloat($('qfValor').value);
-    if(!casa){ alert('Informa a casa de apostas.'); return; }
-    if(valor==null || isNaN(valor)){ alert('Informa o valor da freebet.'); return; }
+    if(!casa){ showToast('Informa a casa de apostas.', 'warn'); return; }
+    if(valor==null || isNaN(valor)){ showToast('Informa o valor da freebet.', 'warn'); return; }
     const payload = {
       data_operacao: hojeBrasilia(),
       casa,
@@ -1934,8 +2160,9 @@
       detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false }, hora_operacao: agoraHoraBrasilia() }
     };
     const { error } = await client.from('operacoes').insert(payload);
-    if(error){ alert('Erro ao salvar: ' + error.message); return; }
+    if(error){ showToast('Erro ao salvar: ' + error.message, 'err'); return; }
     $('quickFreebetModal').classList.remove('open');
+    showToast('Freebet adicionada.', 'ok');
     await loadOps();
     renderFreebetsList();
     updateFreebetsBadge();
