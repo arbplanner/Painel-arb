@@ -331,13 +331,8 @@
   .status-badge{cursor:pointer;}
   .status-quickmenu{
     position:absolute; z-index:60; background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.4); padding:4px; min-width:130px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4); padding:6px; min-width:100px;
   }
-  .status-quickmenu button{
-    display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:7px 9px; border-radius:5px;
-    background:none; border:none; color:var(--text); font-size:12px; cursor:pointer; font-family:inherit;
-  }
-  .status-quickmenu button:hover{background:var(--panel);}
 
   /* ---- Ranking por casa ---- */
   .rank-row{
@@ -384,6 +379,10 @@
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
     Freebets
     <span class="side-tag" id="freebetsCountTag" style="display:none;"></span>
+  </div>
+  <div class="side-item" id="sideRankingBtn" style="cursor:pointer;">
+    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
+    Ranking por casa
   </div>
   <div class="side-item soon">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg></span>
@@ -551,16 +550,18 @@
     <div class="chart-wrap"><canvas id="chartLucro"></canvas></div>
   </div>
 
-  <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-title"><span class="left"><span class="dot"></span> Ranking por casa (período filtrado)</span></div>
-    <div id="rankCasasWrap"></div>
-  </div>
-
   <div class="panel">
     <div class="panel-title"><span class="left"><span class="dot"></span> Operações</span></div>
     <div id="tableWrap">
       <div class="empty">Conecte o painel ao Supabase para ver as operações.</div>
     </div>
+  </div>
+</div>
+
+<div id="viewRanking" style="display:none;">
+  <div class="panel">
+    <div class="panel-title"><span class="left"><span class="dot"></span> Ranking por casa (período filtrado)</span></div>
+    <div id="rankCasasWrap"></div>
   </div>
 </div>
 
@@ -635,51 +636,102 @@
     if(existing) existing.remove();
   }
   document.addEventListener('click', (e)=>{
-    if(!e.target.closest('.status-quickmenu') && !e.target.closest('[data-statusbadge]')) closeStatusQuickMenu();
+    if(!e.target.closest('.status-quickmenu') && !e.target.closest('[data-qmenutrigger]')) closeStatusQuickMenu();
   });
 
-  function openStatusQuickMenu(badgeEl, op){
+  function refreshAfterOpChange(){
+    renderCards();
+    renderAll();
+    renderFreebetsList();
+    updateFreebetsBadge();
+  }
+
+  // Recalcula o total/estado de uma operação (com ou sem pernas) a partir do detalhe, sem precisar de DOM.
+  function computeOpTotal(op){
+    const detalhe = op.detalhe || {};
+    const pernas = detalhe.pernas || [];
+    if(!pernas.length){
+      return { total: null, allResolved: false }; // ops simples usam status/lucro_real direto, não passam por aqui
+    }
+    const mult = detalhe.multipla || {};
+    let total = 0, allResolved = true;
+    const oddCombinada = mult.odd!=null ? mult.odd : pernaGroups(pernas).reduce((acc,g)=> acc * (parseFloat(g.items[0].odd_multipla)||1), 1);
+    const mProfit = (mult.status_final==='perdida' && mult.freebet) ? 0 : pernaProfit(op.investimento, oddCombinada, mult.status_final, 'back', null);
+    if(mProfit!=null) total += mProfit;
+    if(!mult.status_final || mult.status_final==='pendente') allResolved = false;
+    pernaGroups(pernas).forEach(group=>{
+      group.items.forEach(p=>{
+        const profit = pernaProfit(p.stake, p.odd, p.status_final, p.acao, p.comissao);
+        if(profit!=null) total += profit;
+        if(!p.status_final || p.status_final==='pendente') allResolved = false;
+      });
+    });
+    return { total, allResolved };
+  }
+
+  // target: {kind:'simples'} | {kind:'multipla'} | {kind:'perna', idx:<índice no array plano detalhe.pernas>}
+  function openStatusQuickMenu(anchorEl, op, target){
     closeStatusQuickMenu();
-    const rect = badgeEl.getBoundingClientRect();
+    const rect = anchorEl.getBoundingClientRect();
     const menu = document.createElement('div');
     menu.className = 'status-quickmenu';
     menu.style.top = (rect.bottom + window.scrollY + 4) + 'px';
     menu.style.left = (rect.left + window.scrollX) + 'px';
     menu.innerHTML = `
-      <button data-qstatus="pendente">${ICON_PEND} Pendente</button>
-      <button data-qstatus="green">${ICON_CHECK} Green</button>
-      <button data-qstatus="red">${ICON_X} Red</button>
+      <button class="status-badge pend" data-qstatus="pendente" style="width:100%; margin-bottom:4px; justify-content:center;">${ICON_PEND} PEND.</button>
+      <button class="status-badge green" data-qstatus="green" style="width:100%; margin-bottom:4px; justify-content:center;">${ICON_CHECK} GREEN</button>
+      <button class="status-badge red" data-qstatus="red" style="width:100%; justify-content:center;">${ICON_X} RED</button>
     `;
     document.body.appendChild(menu);
 
-    async function salvarDireto(payload){
+    async function aplicar(kind){
+      let payload;
+      if(target.kind==='simples'){
+        payload = kind==='pendente' ? { status:'pendente', lucro_real:null } : null; // valor pedido abaixo p/ green/red
+      } else {
+        const detalhe = JSON.parse(JSON.stringify(op.detalhe||{}));
+        detalhe.multipla = detalhe.multipla || {};
+        const novoStatus = kind==='green' ? 'ganha' : (kind==='red' ? 'perdida' : 'pendente');
+        if(target.kind==='multipla'){
+          detalhe.multipla.status_final = novoStatus;
+        } else if(target.kind==='perna'){
+          (detalhe.pernas||[])[target.idx].status_final = novoStatus;
+        }
+        const { total, allResolved } = computeOpTotal({ ...op, detalhe });
+        payload = { detalhe, status: allResolved ? 'resolvida' : 'pendente', lucro_real: allResolved ? total : null };
+      }
+      if(payload){ await salvar(payload); }
+    }
+
+    async function salvar(payload){
       closeStatusQuickMenu();
       const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
       if(error) showToast('Erro ao salvar: ' + error.message, 'err');
-      else { showToast('Status atualizado.', 'ok'); await loadOps(); }
+      else { showToast('Status atualizado.', 'ok'); await loadOps(); refreshAfterOpChange(); }
     }
 
-    menu.querySelector('[data-qstatus="pendente"]').onclick = ()=> salvarDireto({ status:'pendente', lucro_real:null });
+    menu.querySelector('[data-qstatus="pendente"]').onclick = ()=> aplicar('pendente');
 
     ['green','red'].forEach(kind=>{
       menu.querySelector(`[data-qstatus="${kind}"]`).onclick = ()=>{
+        if(target.kind!=='simples'){ aplicar(kind); return; }
         menu.innerHTML = `
-          <div style="padding:6px 8px 8px;">
-            <div style="font-size:10.5px; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em;">Valor ${kind==='green'?'do lucro':'da perda'} (R$)</div>
+          <div style="padding:2px 2px 4px;">
+            <div style="font-size:10px; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.04em;">Valor ${kind==='green'?'do lucro':'da perda'} (R$)</div>
             <input type="number" step="0.01" id="qStatusValor" style="width:130px; background:var(--panel); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font-family:'JetBrains Mono'; font-size:12.5px; margin-bottom:6px;" placeholder="0,00">
             <button class="btn btn-blue" id="qStatusSalvar" style="width:130px; padding:6px 0; font-size:12px;">Salvar</button>
           </div>`;
         const input = menu.querySelector('#qStatusValor');
         input.focus();
-        const salvar = ()=>{
+        const confirmarValor = ()=>{
           const raw = parseFloat(input.value);
           if(isNaN(raw)){ showToast('Informa um valor.', 'warn'); return; }
           const lucro = kind==='green' ? Math.abs(raw) : -Math.abs(raw);
-          salvarDireto({ status:'resolvida', lucro_real: lucro });
+          salvar({ status:'resolvida', lucro_real: lucro });
         };
-        menu.querySelector('#qStatusSalvar').onclick = salvar;
+        menu.querySelector('#qStatusSalvar').onclick = confirmarValor;
         input.addEventListener('click', e=> e.stopPropagation());
-        input.addEventListener('keydown', e=>{ if(e.key==='Enter') salvar(); });
+        input.addEventListener('keydown', e=>{ if(e.key==='Enter') confirmarValor(); });
       };
     });
   }
@@ -804,6 +856,7 @@
   $('sideDashboardBtn').onclick = ()=> showView('dashboard');
   $('sideBankrollsBtn').onclick = ()=>{ renderBankrollsGrid(); showView('bankrolls'); };
   $('sideFreebetsBtn').onclick = ()=>{ renderFreebetsList(); showView('freebets'); };
+  $('sideRankingBtn').onclick = ()=>{ renderRankCasas(); showView('ranking'); };
   $('btnNovoBankroll').onclick = ()=>{
     const nome = prompt('Nome do novo bankroll:');
     if(!nome) return;
@@ -983,14 +1036,17 @@
     $('viewDashboard').style.display = view==='dashboard' ? 'block' : 'none';
     $('viewBankrolls').style.display = view==='bankrolls' ? 'block' : 'none';
     $('viewFreebets').style.display = view==='freebets' ? 'block' : 'none';
+    $('viewRanking').style.display = view==='ranking' ? 'block' : 'none';
     $('sideDashboardBtn').classList.toggle('active', view==='dashboard');
     $('sideBankrollsBtn').classList.toggle('active', view==='bankrolls');
     $('sideFreebetsBtn').classList.toggle('active', view==='freebets');
+    $('sideRankingBtn').classList.toggle('active', view==='ranking');
     $('btnAdicionarApostaLabel').textContent = view==='freebets' ? 'Adicionar freebet' : 'Adicionar aposta';
   }
 
   function freebetsPendentes(){
     return ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
+      && o.status==='resolvida'
       && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
       && !o.detalhe.multipla.freebet_usada_confirmada);
   }
@@ -1000,11 +1056,12 @@
     if(!wrap) return;
     const pendentes = freebetsPendentes();
     const usadas = ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
+      && o.status==='resolvida'
       && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
       && o.detalhe.multipla.freebet_usada_confirmada);
 
     if(!pendentes.length && !usadas.length){
-      wrap.innerHTML = `<div class="panel"><div class="empty">Nenhuma freebet marcada ainda. No editar de uma operação, marque "🎁 Gera Freebet" pra ela aparecer aqui.</div></div>`;
+      wrap.innerHTML = `<div class="panel"><div class="empty">Nenhuma freebet marcada ainda. Marque "🎁 Gera Freebet" numa operação — ela aparece aqui assim que for dada como Green ou Red.</div></div>`;
       return;
     }
 
@@ -1423,6 +1480,7 @@
       const mTag = mult.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
         : mult.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
         : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
+      const mTagClickable = `<span data-qmenutrigger="multipla" data-opid="${op.id}" title="Clique pra mudar rapidamente">${mTag}</span>`;
 
       const stakeTotal = (mult.freebet ? 0 : (op.investimento||0)) + pernas.reduce((a,p)=>a+(p.stake||0),0);
       detailHtml += `<div class="detail-stake-total">
@@ -1437,7 +1495,7 @@
         <span class="detail-label">${op.nome || 'Múltipla'} <em>(ticket principal)</em></span>
         <span class="detail-odd">Odd: ${oddCombinada?parseFloat(oddCombinada).toFixed(2):'—'}</span>
         <span class="retorno-val ${mProfit==null?'':(mProfit>=0?'pos-txt':'neg-txt')}">${mProfit==null?'—':fmt(mProfit)}</span>
-        ${mTag}
+        ${mTagClickable}
       </div>`;
       pernaGroups(pernas).forEach(group=>{
         group.items.forEach((p, idx)=>{
@@ -1445,6 +1503,8 @@
           const tag = p.status_final==='ganha' ? `<span class="status-badge green" style="width:auto;">${ICON_CHECK} GREEN</span>`
             : p.status_final==='perdida' ? `<span class="status-badge red" style="width:auto;">${ICON_X} RED</span>`
             : `<span class="status-badge pend" style="width:auto;">${ICON_PEND} PEND.</span>`;
+          const flatIdx = pernas.indexOf(p);
+          const tagClickable = `<span data-qmenutrigger="perna" data-opid="${op.id}" data-pernaidx="${flatIdx}" title="Clique pra mudar rapidamente">${tag}</span>`;
           const label = p.selecao_multipla || p.rotulo || '';
           const acaoTag = p.acao==='lay' ? `<span class="acao-tag lay">LAY</span>` : `<span class="acao-tag back">BACK</span>`;
           detailHtml += `<div class="detail-row">
@@ -1455,7 +1515,7 @@
             <input type="text" class="detail-label-input" value="${label}" placeholder="descrição" data-editselecao="${op.id}|${group.perna_num}">
             <span class="detail-odd">Odd: ${p.odd??'—'}</span>
             <span class="retorno-val ${profit==null?'':(profit>=0?'pos-txt':'neg-txt')}">${profit==null?'—':fmt(profit)}</span>
-            ${tag}
+            ${tagClickable}
           </div>`;
         });
       });
@@ -1472,7 +1532,7 @@
     </span>` : '';
     const statusBadgeHtml = (pernas && pernas.length)
       ? statusBadge
-      : `<span data-statusbadge="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`;
+      : `<span data-qmenutrigger="simples" data-opid="${op.id}" title="Clique pra mudar rapidamente">${statusBadge}</span>`;
     return `<div class="op-row-wrap">
     <div class="op-row" ${rowClickAttr} style="${pernas && pernas.length ? 'cursor:pointer;' : ''}">
       ${expandBtn}
@@ -1494,11 +1554,17 @@
   }
 
   function bindGroupEvents(wrap){
-    wrap.querySelectorAll('[data-statusbadge]').forEach(el=>{
+    wrap.querySelectorAll('[data-qmenutrigger]').forEach(el=>{
       el.addEventListener('click', (e)=>{
         e.stopPropagation();
-        const op = ops.find(o=>String(o.id)===String(el.dataset.statusbadge));
-        if(op) openStatusQuickMenu(el, op);
+        const op = ops.find(o=>String(o.id)===String(el.dataset.opid));
+        if(!op) return;
+        const kind = el.dataset.qmenutrigger;
+        if(kind==='perna'){
+          openStatusQuickMenu(el, op, { kind:'perna', idx: parseInt(el.dataset.pernaidx,10) });
+        } else {
+          openStatusQuickMenu(el, op, { kind });
+        }
       });
     });
 
@@ -2155,7 +2221,7 @@
       casa,
       nome: 'Freebet',
       investimento: valor,
-      status: 'pendente',
+      status: 'resolvida',
       bankroll: activeBankroll,
       detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false }, hora_operacao: agoraHoraBrasilia() }
     };
