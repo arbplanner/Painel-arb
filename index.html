@@ -683,6 +683,7 @@
       <button class="status-badge red" data-qstatus="red" style="width:100%; justify-content:center;">${ICON_X} RED</button>
     `;
     document.body.appendChild(menu);
+    menu.addEventListener('click', e=> e.stopPropagation());
 
     async function aplicar(kind){
       let payload;
