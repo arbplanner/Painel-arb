@@ -556,7 +556,7 @@
   const CASAS_PADRAO = [
     '4PLAYBET','7GAMES','APOSTABET','APOSTAGANHA','BANDBET','BET365','BETANO','BETAO','BETBRA','BETBRA SB',
     'BETFAIR','BETNACIONAL','BETSUL','BETVIP','BLAZE','BOLSADEAPOSTAS','BRX','BTMGM','BULLSBET',
-    'ESPORTESDASORTE','ESPORTIVABET','ESTRELABET','FULLTBET','GANHEIBET','HIPERBET',
+    'CASSINO PIX','ESPORTESDASORTE','ESPORTIVABET','ESTRELABET','FULLTBET','GANHEIBET','HIPERBET',
     'LOTTU','MAXIMABET','MC GAMES','MILHAO.BET','MULTIBET','NOVIBET','ONA','ONLYBETS','PAGOL','PAGOLBET',
     'PINNACLE','PITACO','PIXBET','R7','RIVALO','SEGUROBET','SPORTINGBET','SPORTY','SPORTYBET','STAKE',
     'SUPERBET','TRADERBALL','VAIDEBET','VUPI','ZONADEJOGO','N/A'
@@ -1070,7 +1070,7 @@
   const CASA_DOMINIOS = {
     '4PLAYBET':'4playbet.bet.br','7GAMES':'7games.bet.br','APOSTABET':'aposta.bet.br','APOSTAGANHA':'apostaganha.bet.br',
     'BANDBET':'bandbet.bet.br','BET365':'bet365.com','BETANO':'betano.bet.br','BETAO':'betao.bet.br','BETBRA':'betbra.bet.br',
-    'BETBRA SB':'betbra.bet.br','BTMGM':'betmgm.bet.br',
+    'BETBRA SB':'betbra.bet.br','BTMGM':'betmgm.bet.br','CASSINO PIX':'cassino.bet.br',
     'BETFAIR':'betfair.bet.br','BETNACIONAL':'betnacional.bet.br','BETSUL':'betsul.bet.br','BETVIP':'betvip.bet.br',
     'BLAZE':'blaze.bet.br','BOLSADEAPOSTAS':'bolsadeaposta.bet.br','BRX':'brx.bet.br','BULLSBET':'bullsbet.bet.br','ESPORTESDASORTE':'esportesdasorte.bet.br',
     'ESPORTIVABET':'esportiva.bet.br','ESTRELABET':'estrelabet.bet.br','FULLTBET':'fulltbet.bet.br','GANHEIBET':'ganheibet.bet.br',
@@ -1248,12 +1248,19 @@
     }
 
     const rowClickAttr = (pernas && pernas.length) ? `data-exprow="${op.id}"` : '';
+    const mult0 = (op.detalhe && op.detalhe.multipla) || {};
+    const usouFreebet = !!mult0.freebet;
+    const geraFreebet = !!mult0.gera_freebet;
+    const freebetIcons = (usouFreebet || geraFreebet) ? `<span style="display:inline-flex; gap:4px; margin-left:6px; vertical-align:middle;">
+      ${usouFreebet ? `<span title="Operação feita usando freebet" style="font-size:12px;">🎟️</span>` : ''}
+      ${geraFreebet ? `<span title="Essa operação vai gerar uma freebet" style="font-size:12px;">🎁</span>` : ''}
+    </span>` : '';
     return `<div class="op-row-wrap">
     <div class="op-row" ${rowClickAttr} style="${pernas && pernas.length ? 'cursor:pointer;' : ''}">
       ${expandBtn}
       <div class="op-time">${dataCurtaOf(op.data_operacao)}<br>${horaOf(op)}</div>
       ${casaBadgeHtml(op.casa, 26)}
-      <div class="casa-name">${op.casa || 'Sem casa'}</div>
+      <div class="casa-name">${op.casa || 'Sem casa'}${freebetIcons}</div>
       <div class="op-nome">${op.nome || '—'}</div>
       <div class="op-result">
         ${statusBadge}
