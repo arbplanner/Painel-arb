@@ -51,8 +51,13 @@
   .side-item{
     display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px; color:var(--muted);
     font-size:13px; font-weight:500; cursor:default; user-select:none;
+    border-left:2px solid transparent;
   }
-  .side-item.active{background:var(--panel-2); color:var(--text); font-weight:600;}
+  .side-item.active{
+    background:rgba(91,157,255,0.12); color:var(--blue); font-weight:700;
+    border-left:2px solid var(--blue); border-radius:0 7px 7px 0; margin-left:-2px;
+  }
+  .side-item.active .side-icon{color:var(--blue);}
   .side-item .side-icon{width:16px; height:16px; flex-shrink:0; display:flex; align-items:center; justify-content:center;}
   .side-item .side-icon svg{width:16px; height:16px;}
   .side-item.soon{opacity:.45;}
@@ -303,19 +308,19 @@
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span>
     Dashboard
   </div>
+  <div class="side-item" id="sideBankrollsBtn" style="cursor:pointer;">
+    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
+    Bankrolls
+  </div>
   <div class="side-group">Gestão</div>
   <a class="side-item" href="calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
-    Calculadora
+    Calculadora Múltipla
   </a>
   <a class="side-item" href="protecao-dg.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
     Proteção DG
   </a>
-  <div class="side-item" id="sideBankrollsBtn" style="cursor:pointer;">
-    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></span>
-    Bankrolls
-  </div>
   <div class="side-item" id="sideFreebetsBtn" style="cursor:pointer;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
     Freebets
