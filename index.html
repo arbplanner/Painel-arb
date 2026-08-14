@@ -150,6 +150,43 @@
   .btn-ghost{background:var(--panel-2); color:var(--text); border:1px solid var(--line);}
   .btn:hover{filter:brightness(1.12);}
 
+  /* ---- Dashboard v2 ---- */
+  .dashboard-kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-bottom:18px;}
+  .kpi-card{position:relative; overflow:hidden; background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.008)); border:1px solid var(--line); border-radius:12px; padding:15px 16px; min-width:0;}
+  .kpi-card:before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--kpi-color,var(--blue)); opacity:.85;}
+  .kpi-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
+  .kpi-label{font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .kpi-icon{width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--kpi-color,var(--blue)); background:color-mix(in srgb,var(--kpi-color,var(--blue)) 12%, transparent); flex-shrink:0;}
+  .kpi-icon svg{width:15px;height:15px;}
+  .kpi-value{font-family:'JetBrains Mono',monospace; font-size:21px; line-height:1.1; font-weight:700; letter-spacing:-.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .kpi-sub{font-size:10.5px; color:var(--muted); margin-top:7px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .dashboard-toolbar{display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:18px;}
+  .toolbar-title{display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:700;}
+  .toolbar-title .dot{width:6px;height:6px;border-radius:50%;background:var(--blue);}
+  .filter-panel{padding:14px 16px; margin-bottom:18px;}
+  .filter-panel .filter-row{align-items:flex-end;}
+  .filter-search{min-width:230px; flex:1.6!important; position:relative;}
+  .filter-search input{padding-left:34px!important; font-family:'Inter',sans-serif!important;}
+  .filter-search .search-icon{position:absolute; left:10px; bottom:10px; color:var(--muted); width:15px;height:15px; pointer-events:none;}
+  .chart-panel{padding:15px 18px 12px; margin-bottom:18px;}
+  .chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:2px;}
+  .chart-legend{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:10px;}
+  .legend-item{display:flex;align-items:center;gap:5px;}
+  .legend-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+  .legend-dot.red{background:var(--red);}
+  .legend-dot.blue{background:var(--blue);}
+  .chart-select{background:var(--panel-2);border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:5px 8px;font-size:10.5px;}
+  .operations-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+  .operations-meta{font-size:10.5px;color:var(--muted);}
+  .op-row{transition:background .15s ease, border-color .15s ease; border-radius:7px;}
+  .op-row:hover{background:rgba(91,157,255,.035);}
+  .month-header,.week-header,.day-header{transition:background .15s ease;}
+  .month-header:hover,.week-header:hover,.day-header:hover{background:rgba(91,157,255,.035);}
+  .day-block{box-shadow:inset 0 1px 0 rgba(255,255,255,.012);}
+  @media (max-width:1100px){.dashboard-kpis{grid-template-columns:repeat(3,1fr);}}
+  @media (max-width:760px){.dashboard-kpis{grid-template-columns:repeat(2,1fr);}.chart-legend{display:none;}.filter-search{min-width:100%;}}
+  @media (max-width:480px){.dashboard-kpis{grid-template-columns:1fr 1fr;}.kpi-card{padding:13px 12px;}.kpi-value{font-size:18px;}}
+
   .chart-wrap{height:220px; margin-top:4px;}
 
   .tag{font-size:10.5px; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap;}
@@ -494,27 +531,37 @@
 
 <div class="wrap">
 <div id="viewDashboard">
-  <div class="cards">
-    <div class="card">
-      <div class="label">Lucro de hoje</div>
-      <div class="value num" id="lucroHoje">—</div>
-      <div class="sub" id="lucroHojeSub"></div>
+  <div class="dashboard-kpis">
+    <div class="kpi-card" style="--kpi-color:var(--green);">
+      <div class="kpi-top"><span class="kpi-label">Lucro do período</span><span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-9"/><path d="M16 6h5v5"/></svg></span></div>
+      <div class="kpi-value" id="kpiLucro">—</div><div class="kpi-sub" id="kpiLucroSub">Período filtrado</div>
     </div>
-    <div class="card">
-      <div class="label">Lucro do mês</div>
-      <div class="value num" id="lucroMes">—</div>
-      <div class="sub" id="lucroMesSub"></div>
+    <div class="kpi-card" style="--kpi-color:#a979ff;">
+      <div class="kpi-top"><span class="kpi-label">ROI</span><span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></span></div>
+      <div class="kpi-value" id="kpiRoi">—</div><div class="kpi-sub" id="kpiRoiSub">Sobre o capital apostado</div>
     </div>
-    <div class="card">
-      <div class="label">Lucro do ano</div>
-      <div class="value num" id="lucroAno">—</div>
-      <div class="sub" id="lucroAnoSub"></div>
+    <div class="kpi-card" style="--kpi-color:var(--blue);">
+      <div class="kpi-top"><span class="kpi-label">Operações</span><span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span></div>
+      <div class="kpi-value" id="kpiOps">0</div><div class="kpi-sub" id="kpiOpsSub">0 resolvidas · 0 pendentes</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--amber);">
+      <div class="kpi-top"><span class="kpi-label">Capital apostado</span><span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h15a2 2 0 0 1 2 2v10H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h13"/><path d="M16 13h5"/><circle cx="16" cy="13" r="1"/></svg></span></div>
+      <div class="kpi-value" id="kpiInvest">R$ 0,00</div><div class="kpi-sub" id="kpiInvestSub">Somatório das stakes</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:#35c9a0;">
+      <div class="kpi-top"><span class="kpi-label">Lucro médio</span><span class="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg></span></div>
+      <div class="kpi-value" id="kpiMedio">—</div><div class="kpi-sub" id="kpiMedioSub">Por operação resolvida</div>
     </div>
   </div>
 
-  <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-title"><span class="left"><span class="dot"></span> Filtro</span></div>
+  <div class="panel filter-panel">
+    <div class="panel-title" style="margin-bottom:10px;"><span class="left"><span class="dot"></span> Filtros do painel</span><span class="operations-meta" id="filterSummary">Todos os registros</span></div>
     <div class="filter-row">
+      <div class="field filter-search">
+        <label>Buscar operação</label>
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input type="search" id="fBusca" placeholder="Casa, evento ou descrição…" autocomplete="off">
+      </div>
       <div class="field">
         <label>Período</label>
         <select id="fPeriodo">
@@ -545,13 +592,19 @@
     </div>
   </div>
 
-  <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-title"><span class="left"><span class="dot"></span> Evolução do lucro (período filtrado)</span></div>
+  <div class="panel chart-panel">
+    <div class="chart-head">
+      <div class="panel-title" style="margin:0;"><span class="left"><span class="dot"></span> Evolução do lucro</span></div>
+      <div class="chart-legend"><span class="legend-item"><span class="legend-dot"></span>Lucro</span><span class="legend-item"><span class="legend-dot red"></span>Perda</span><select class="chart-select" id="chartGranularity"><option value="operacao">Por operação</option><option value="dia">Por dia</option></select></div>
+    </div>
+    <div class="operations-meta" id="chartSummary" style="margin-top:3px;">Período filtrado</div>
     <div class="chart-wrap"><canvas id="chartLucro"></canvas></div>
   </div>
 
   <div class="panel">
-    <div class="panel-title"><span class="left"><span class="dot"></span> Operações</span></div>
+    <div class="operations-head">
+      <div><div class="panel-title" style="margin:0 0 3px;"><span class="left"><span class="dot"></span> Operações</span></div><div class="operations-meta" id="operationsSummary">0 operações no período</div></div>
+    </div>
     <div id="tableWrap">
       <div class="empty">Conecte o painel ao Supabase para ver as operações.</div>
     </div>
@@ -1217,31 +1270,32 @@
   }
 
   function renderCards(){
-    const todayStr = hojeBrasilia();
-    const monthStr = todayStr.slice(0,7);
-    const yearStr = todayStr.slice(0,4);
-    const list = bankrollOps();
-
-    const sum = (filterFn) => list.filter(filterFn).reduce((a,o)=> a + (profitOf(o)||0), 0);
-    const countPend = (filterFn) => list.filter(filterFn).filter(o=>o.status!=='resolvida').length;
-
-    const hoje = sum(o=>o.data_operacao===todayStr);
-    const mes = sum(o=>(o.data_operacao||'').startsWith(monthStr));
-    const ano = sum(o=>(o.data_operacao||'').startsWith(yearStr));
-
-    $('lucroHoje').textContent = fmt(hoje);
-    $('lucroHoje').className = 'value num ' + (hoje>=0?'pos':'neg');
-    $('lucroMes').textContent = fmt(mes);
-    $('lucroMes').className = 'value num ' + (mes>=0?'pos':'neg');
-    $('lucroAno').textContent = fmt(ano);
-    $('lucroAno').className = 'value num ' + (ano>=0?'pos':'neg');
-
-    const pHoje = countPend(o=>o.data_operacao===todayStr);
-    const pMes = countPend(o=>(o.data_operacao||'').startsWith(monthStr));
-    const pAno = countPend(o=>(o.data_operacao||'').startsWith(yearStr));
-    $('lucroHojeSub').textContent = pHoje>0 ? pHoje+' pendente(s)' : 'todas resolvidas';
-    $('lucroMesSub').textContent = pMes>0 ? pMes+' pendente(s)' : 'todas resolvidas';
-    $('lucroAnoSub').textContent = pAno>0 ? pAno+' pendente(s)' : 'todas resolvidas';
+    const list = getFilteredOps();
+    const resolved = list.filter(o=>o.status==='resolvida' && o.lucro_real!=null);
+    const pending = list.length - resolved.length;
+    const lucro = resolved.reduce((a,o)=>a + (profitOf(o)||0),0);
+    const medio = resolved.length ? lucro/resolved.length : null;
+    const invest = list.reduce((a,o)=>{
+      const d=o.detalhe||{};
+      const pernas=Array.isArray(d.pernas)?d.pernas:[];
+      const mult=d.multipla||{};
+      const base=(mult.freebet?0:(Number(o.investimento)||0));
+      return a + base + pernas.reduce((s,p)=>s+(Number(p.stake)||0),0);
+    },0);
+    const roi = invest>0 ? (lucro/invest)*100 : null;
+    const setVal=(id,val,cls)=>{ const el=$(id); if(!el) return; el.textContent=val; if(cls) el.className='kpi-value num '+cls; };
+    setVal('kpiLucro', fmt(lucro), lucro>=0?'pos':'neg');
+    setVal('kpiRoi', roi==null?'—':roi.toFixed(2).replace('.',',')+'%', roi==null?'':(roi>=0?'pos':'neg'));
+    setVal('kpiOps', String(list.length));
+    setVal('kpiInvest', fmt(invest));
+    setVal('kpiMedio', medio==null?'—':fmt(medio), medio==null?'':(medio>=0?'pos':'neg'));
+    $('kpiLucroSub').textContent = `${resolved.length} resolvida(s)${pending?' · '+pending+' pendente(s)':''}`;
+    $('kpiRoiSub').textContent = invest>0 ? 'Lucro ÷ capital apostado' : 'Sem capital resolvido para calcular';
+    $('kpiOpsSub').textContent = `${resolved.length} resolvida(s) · ${pending} pendente(s)`;
+    $('kpiInvestSub').textContent = list.length ? 'Inclui múltiplas e pernas' : 'Nenhuma operação filtrada';
+    $('kpiMedioSub').textContent = resolved.length ? 'Por operação resolvida' : 'Nenhuma resolvida no filtro';
+    const fs=$('filterSummary'); if(fs) fs.textContent = `${list.length} registro(s) exibido(s)`;
+    const os=$('operationsSummary'); if(os) os.textContent = `${list.length} operação(ões) · ${resolved.length} resolvida(s) · ${pending} pendente(s)`;
   }
 
   function updateCasaOptions(){
@@ -1256,9 +1310,12 @@
     const yearStr = todayStr.slice(0,4);
     const de = $('fCustomDe').value;
     const ate = $('fCustomAte').value;
+    const busca = (($('fBusca') && $('fBusca').value) || '').trim().toLowerCase();
 
     return bankrollOps().filter(o=>{
       const d = o.data_operacao || '';
+      const textoBusca = [o.nome, o.casa, o.data_operacao, horaOf(o)].filter(Boolean).join(' ').toLowerCase();
+      const okBusca = !busca || textoBusca.includes(busca);
       let okPeriodo = true;
       if(periodo==='hoje') okPeriodo = d===todayStr;
       else if(periodo==='mes') okPeriodo = d.startsWith(monthStr);
@@ -1269,11 +1326,12 @@
         if(ate) okPeriodo = okPeriodo && d<=ate;
       }
       const okStatus = !status || o.status===status;
-      return okPeriodo && okStatus;
+      return okPeriodo && okStatus && okBusca;
     });
   }
 
   function renderAll(){
+    renderCards();
     renderGrouped();
     renderChart();
     renderRankCasas();
@@ -1313,48 +1371,28 @@
 
   function renderChart(){
     const filtered = getFilteredOps().slice().sort((a,b)=>{
-      const da = a.data_operacao||''; const db = b.data_operacao||'';
+      const da=a.data_operacao||''; const db=b.data_operacao||'';
       if(da!==db) return da<db?-1:1;
       return (a.criado_em||'')<(b.criado_em||'')?-1:1;
     });
-    let running = 0;
-    const labels = [];
-    const valores = [];
+    const gran = $('chartGranularity') ? $('chartGranularity').value : 'operacao';
+    const buckets=[]; const map=new Map();
     filtered.forEach(o=>{
-      running += (profitOf(o)||0);
-      labels.push(o.data_operacao || '—');
-      valores.push(Number(running.toFixed(2)));
+      const key = gran==='dia' ? (o.data_operacao||'Sem data') : String(o.id);
+      if(!map.has(key)) map.set(key,{label:o.data_operacao||'Sem data',profit:0});
+      map.get(key).profit += profitOf(o)||0;
     });
-
+    map.forEach(v=>buckets.push(v));
+    let running=0;
+    const labels=[]; const valores=[];
+    buckets.forEach(v=>{ running += v.profit; labels.push(v.label); valores.push(Number(running.toFixed(2))); });
+    const summary=$('chartSummary'); if(summary) summary.textContent = filtered.length ? `${filtered.length} operação(ões) · lucro acumulado ${fmt(running)}` : 'Nenhum dado para o filtro atual';
     if(chart) chart.destroy();
-    if(filtered.length===0){ return; }
-    chart = new Chart($('chartLucro'), {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'Lucro acumulado (R$)',
-          data: valores,
-          borderColor: '#2fd487',
-          backgroundColor: 'rgba(47,212,135,0.15)',
-          fill: true,
-          tension: 0.35,
-          pointRadius: 3,
-          pointBackgroundColor: '#2fd487',
-          pointBorderColor: '#0a0d12',
-          pointBorderWidth: 1,
-          borderWidth: 2,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: '#7b869b', font:{size:10}, maxTicksLimit:10 }, grid: { color: '#1a2029' } },
-          y: { ticks: { color: '#7b869b', font:{size:10} }, grid: { color: '#1a2029' } }
-        }
-      }
+    if(!filtered.length) return;
+    chart = new Chart($('chartLucro'),{
+      type:'line',
+      data:{labels,datasets:[{label:'Lucro acumulado',data:valores,borderColor:'#2fd487',backgroundColor:'rgba(47,212,135,0.10)',fill:true,tension:.3,pointRadius:3,pointHoverRadius:5,pointBackgroundColor:ctx=>ctx.raw>=0?'#2fd487':'#ff5c6c',pointBorderColor:'#0a0d12',pointBorderWidth:1,borderWidth:2,segment:{borderColor:ctx=>{const y=ctx.p1.parsed.y; return y>=0?'#2fd487':'#ff5c6c';},backgroundColor:ctx=>{const y=ctx.p1.parsed.y; return y>=0?'rgba(47,212,135,.10)':'rgba(255,92,108,.08)';}}}]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{displayColors:false,padding:10,callbacks:{title:items=>items[0]?.label||'',label:ctx=>'Lucro acumulado: '+fmt(ctx.parsed.y)}}},scales:{x:{ticks:{color:'#7b869b',font:{size:10},maxTicksLimit:10},grid:{color:'#1a2029'}},y:{ticks:{color:'#7b869b',font:{size:10},callback:v=>'R$ '+Number(v).toFixed(0)},grid:{color:ctx=>ctx.tick.value===0?'#4b5563':'#1a2029',lineWidth:ctx=>ctx.tick.value===0?1.2:1}}}}
     });
   }
 
@@ -2276,6 +2314,8 @@
   $('fCustomDe').addEventListener('change', renderAll);
   $('fCustomAte').addEventListener('change', renderAll);
   $('fStatus').addEventListener('change', renderAll);
+  $('fBusca').addEventListener('input', renderAll);
+  $('chartGranularity').addEventListener('change', renderChart);
 
   $('sideBankrollAtivo').textContent = activeBankroll;
   $('headerBankrollAtivo').textContent = activeBankroll;
