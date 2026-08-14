@@ -650,10 +650,26 @@
   // de freebet independente (linha própria na tabela) — a partir daí apagar a freebet não mexe
   // mais na aposta original que ficou na planilha.
   async function spawnFreebetIfNeeded(op, payload){
-    if(!payload || !payload.detalhe) return;
+    if(!op || !op.id || !payload || !payload.detalhe) return;
     const mult = payload.detalhe.multipla || {};
     const status = payload.status!==undefined ? payload.status : op.status;
     if(status!=='resolvida' || !mult.gera_freebet || mult.freebet_gerada) return;
+
+    // O ID da operação original fica gravado na freebet. Isso torna a relação
+    // explícita e evita criar duas freebets para a mesma operação.
+    const { data: existente, error: eCheck } = await client
+      .from('operacoes')
+      .select('id')
+      .eq('bankroll', op.bankroll || activeBankroll)
+      .contains('detalhe', { multipla: { freebet_independente:true, origem_operacao_id: op.id } })
+      .limit(1);
+    if(eCheck){ showToast('Erro ao verificar freebet existente: ' + eCheck.message, 'err'); return; }
+    if(existente && existente.length){
+      const detalheMarcadoExistente = { ...payload.detalhe, multipla: { ...mult, freebet_gerada:true } };
+      await client.from('operacoes').update({ detalhe: detalheMarcadoExistente }).eq('id', op.id);
+      return;
+    }
+
     const freebetPayload = {
       data_operacao: op.data_operacao || hojeBrasilia(),
       casa: op.casa,
@@ -661,12 +677,22 @@
       investimento: 0,
       status: 'resolvida',
       bankroll: op.bankroll || activeBankroll,
-      detalhe: { pernas: [], multipla: { gera_freebet:true, freebet_usada_confirmada:false, freebet_independente:true }, hora_operacao: agoraHoraBrasilia() }
+      detalhe: {
+        pernas: [],
+        multipla: {
+          gera_freebet:true,
+          freebet_usada_confirmada:false,
+          freebet_independente:true,
+          origem_operacao_id: op.id
+        },
+        hora_operacao: agoraHoraBrasilia()
+      }
     };
     const { error: e1 } = await client.from('operacoes').insert(freebetPayload);
     if(e1){ showToast('Erro ao gerar a freebet: ' + e1.message, 'err'); return; }
     const detalheMarcado = { ...payload.detalhe, multipla: { ...mult, freebet_gerada:true } };
-    await client.from('operacoes').update({ detalhe: detalheMarcado }).eq('id', op.id);
+    const { error: e2 } = await client.from('operacoes').update({ detalhe: detalheMarcado }).eq('id', op.id);
+    if(e2){ showToast('Freebet criada, mas não consegui marcar a operação original como já gerada: ' + e2.message, 'warn', {duration:6000}); return; }
     showToast('Freebet gerada — já está na aba Freebets, independente dessa aposta.', 'ok');
   }
 
@@ -794,7 +820,19 @@
     $('sideBankrollAtivo').textContent = name;
     $('headerBankrollAtivo').textContent = name;
   }
-  function bankrollOps(){ return ops.filter(o => (o.bankroll||'Teste') === activeBankroll && !pendingDeleteIds.has(String(o.id))); }
+  // A operação que representa a freebet gerada é um registro auxiliar independente.
+  // Ela deve aparecer SOMENTE na aba Freebets, nunca na planilha, nos cards, gráfico ou ranking.
+  function isFreebetIndependente(op){
+    return !!(op && op.detalhe && op.detalhe.multipla && op.detalhe.multipla.freebet_independente);
+  }
+
+  function bankrollOps(){
+    return ops.filter(o =>
+      (o.bankroll||'Teste') === activeBankroll &&
+      !pendingDeleteIds.has(String(o.id)) &&
+      !isFreebetIndependente(o)
+    );
+  }
 
   const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
@@ -2130,8 +2168,18 @@
         }
 
         if(isNew){
-          const { error } = await client.from('operacoes').insert(payload);
-          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); refreshAfterOpChange(); }
+          // Quando a operação nova já é salva totalmente resolvida (green/red),
+          // o fluxo antigo não chamava spawnFreebetIfNeeded. Isso fazia a freebet
+          // não nascer justamente nesse cenário. Agora o registro recém-criado
+          // passa pelo mesmo fluxo usado nas edições/status rápidos.
+          const { data: inserted, error } = await client.from('operacoes').insert(payload).select().single();
+          if(!error){
+            if(inserted) await spawnFreebetIfNeeded(inserted, payload);
+            $('editModal').classList.remove('open');
+            showToast('Operação salva.', 'ok');
+            await loadOps();
+            refreshAfterOpChange();
+          }
           else showToast('Erro ao salvar: ' + error.message, 'err');
         } else {
           const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
