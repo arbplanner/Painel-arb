@@ -1083,7 +1083,7 @@
             ${pendente
               ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
               : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
-            <button class="icon-sq-btn danger" data-freebetdel="${o.id}" title="Apagar freebet" style="width:26px; height:26px;">${ICON_TRASH}</button>
+            <button class="icon-sq-btn danger" data-freebetdel="${o.id}" title="Remover freebet (se for uma aposta planilhada, ela continua na planilha)" style="width:26px; height:26px;">${ICON_TRASH}</button>
           </div>
         </div>
         <div class="casa-name" style="font-size:13px; font-weight:700; color:var(--text);">${o.casa||'Sem casa'}</div>
@@ -1118,11 +1118,23 @@
     });
 
     wrap.querySelectorAll('[data-freebetdel]').forEach(btn=>{
-      btn.onclick = ()=>{
+      btn.onclick = async ()=>{
         const id = btn.dataset.freebetdel;
         const op = ops.find(o=>String(o.id)===String(id));
         if(!op) return;
-        softDeleteOp(op, ()=>{ renderFreebetsList(); updateFreebetsBadge(); });
+        const mult = (op.detalhe && op.detalhe.multipla) || {};
+        const pernas = (op.detalhe && op.detalhe.pernas) || [];
+        const ehApostaReal = mult.odd!=null || pernas.length>0;
+        if(ehApostaReal){
+          // é uma aposta de verdade planilhada, só remove a marcação de freebet — a operação continua na planilha
+          const novoDetalhe = { ...op.detalhe, multipla: { ...mult, gera_freebet:false, freebet_usada_confirmada:false } };
+          const { error } = await client.from('operacoes').update({ detalhe: novoDetalhe }).eq('id', id);
+          if(error) showToast('Erro ao salvar: ' + error.message, 'err');
+          else { showToast('Marcação de freebet removida. A aposta continua na planilha.', 'ok'); await loadOps(); renderFreebetsList(); updateFreebetsBadge(); renderCards(); renderAll(); }
+        } else {
+          // é uma freebet solta (adicionada direto pelo botão "+ Adicionar freebet"), sem aposta vinculada — pode apagar a operação inteira
+          softDeleteOp(op, ()=>{ renderFreebetsList(); updateFreebetsBadge(); });
+        }
       };
     });
   }
