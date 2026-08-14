@@ -646,6 +646,30 @@
     updateFreebetsBadge();
   }
 
+  // Se uma operação marcada "Gera Freebet" acaba de ser resolvida (green/red), cria um registro
+  // de freebet independente (linha própria na tabela) — a partir daí apagar a freebet não mexe
+  // mais na aposta original que ficou na planilha.
+  async function spawnFreebetIfNeeded(op, payload){
+    if(!payload || !payload.detalhe) return;
+    const mult = payload.detalhe.multipla || {};
+    const status = payload.status!==undefined ? payload.status : op.status;
+    if(status!=='resolvida' || !mult.gera_freebet || mult.freebet_gerada) return;
+    const freebetPayload = {
+      data_operacao: op.data_operacao || hojeBrasilia(),
+      casa: op.casa,
+      nome: `Freebet (${op.nome || op.casa || 'operação'})`,
+      investimento: null,
+      status: 'resolvida',
+      bankroll: op.bankroll || activeBankroll,
+      detalhe: { pernas: [], multipla: { gera_freebet:true, freebet_usada_confirmada:false, freebet_independente:true }, hora_operacao: agoraHoraBrasilia() }
+    };
+    const { error: e1 } = await client.from('operacoes').insert(freebetPayload);
+    if(e1){ showToast('Erro ao gerar a freebet: ' + e1.message, 'err'); return; }
+    const detalheMarcado = { ...payload.detalhe, multipla: { ...mult, freebet_gerada:true } };
+    await client.from('operacoes').update({ detalhe: detalheMarcado }).eq('id', op.id);
+    showToast('Freebet gerada — já está na aba Freebets, independente dessa aposta.', 'ok');
+  }
+
   // Recalcula o total/estado de uma operação (com ou sem pernas) a partir do detalhe, sem precisar de DOM.
   function computeOpTotal(op){
     const detalhe = op.detalhe || {};
@@ -708,7 +732,12 @@
       closeStatusQuickMenu();
       const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
       if(error) showToast('Erro ao salvar: ' + error.message, 'err');
-      else { showToast('Status atualizado.', 'ok'); await loadOps(); refreshAfterOpChange(); }
+      else {
+        await spawnFreebetIfNeeded(op, payload);
+        showToast('Status atualizado.', 'ok');
+        await loadOps();
+        refreshAfterOpChange();
+      }
     }
 
     menu.querySelector('[data-qstatus="pendente"]').onclick = ()=> aplicar('pendente');
@@ -1047,8 +1076,7 @@
 
   function freebetsPendentes(){
     return ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
-      && o.status==='resolvida'
-      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
+      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.freebet_independente
       && !o.detalhe.multipla.freebet_usada_confirmada);
   }
 
@@ -1057,12 +1085,11 @@
     if(!wrap) return;
     const pendentes = freebetsPendentes();
     const usadas = ops.filter(o => (o.bankroll||'Teste')===activeBankroll && !pendingDeleteIds.has(String(o.id))
-      && o.status==='resolvida'
-      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.gera_freebet
+      && o.detalhe && o.detalhe.multipla && o.detalhe.multipla.freebet_independente
       && o.detalhe.multipla.freebet_usada_confirmada);
 
     if(!pendentes.length && !usadas.length){
-      wrap.innerHTML = `<div class="panel"><div class="empty">Nenhuma freebet marcada ainda. Marque "🎁 Gera Freebet" numa operação — ela aparece aqui assim que for dada como Green ou Red.</div></div>`;
+      wrap.innerHTML = `<div class="panel"><div class="empty">Nenhuma freebet marcada ainda. Marque "🎁 Gera Freebet" numa operação — assim que ela for dada como Green ou Red, uma freebet independente aparece aqui.</div></div>`;
       return;
     }
 
@@ -1083,7 +1110,7 @@
             ${pendente
               ? `<button class="btn btn-ghost" data-freebetusar="${o.id}" style="padding:5px 10px; width:auto; font-size:11px;">Marcar como usada</button>`
               : `<span class="status-badge green" style="width:auto;">${ICON_CHECK} USADA</span>`}
-            <button class="icon-sq-btn danger" data-freebetdel="${o.id}" title="Remover freebet (se for uma aposta planilhada, ela continua na planilha)" style="width:26px; height:26px;">${ICON_TRASH}</button>
+            <button class="icon-sq-btn danger" data-freebetdel="${o.id}" title="Apagar freebet" style="width:26px; height:26px;">${ICON_TRASH}</button>
           </div>
         </div>
         <div class="casa-name" style="font-size:13px; font-weight:700; color:var(--text);">${o.casa||'Sem casa'}</div>
@@ -1118,23 +1145,11 @@
     });
 
     wrap.querySelectorAll('[data-freebetdel]').forEach(btn=>{
-      btn.onclick = async ()=>{
+      btn.onclick = ()=>{
         const id = btn.dataset.freebetdel;
         const op = ops.find(o=>String(o.id)===String(id));
         if(!op) return;
-        const mult = (op.detalhe && op.detalhe.multipla) || {};
-        const pernas = (op.detalhe && op.detalhe.pernas) || [];
-        const ehApostaReal = mult.odd!=null || pernas.length>0;
-        if(ehApostaReal){
-          // é uma aposta de verdade planilhada, só remove a marcação de freebet — a operação continua na planilha
-          const novoDetalhe = { ...op.detalhe, multipla: { ...mult, gera_freebet:false, freebet_usada_confirmada:false } };
-          const { error } = await client.from('operacoes').update({ detalhe: novoDetalhe }).eq('id', id);
-          if(error) showToast('Erro ao salvar: ' + error.message, 'err');
-          else { showToast('Marcação de freebet removida. A aposta continua na planilha.', 'ok'); await loadOps(); renderFreebetsList(); updateFreebetsBadge(); renderCards(); renderAll(); }
-        } else {
-          // é uma freebet solta (adicionada direto pelo botão "+ Adicionar freebet"), sem aposta vinculada — pode apagar a operação inteira
-          softDeleteOp(op, ()=>{ renderFreebetsList(); updateFreebetsBadge(); });
-        }
+        softDeleteOp(op, ()=>{ renderFreebetsList(); updateFreebetsBadge(); });
       };
     });
   }
@@ -2116,11 +2131,17 @@
 
         if(isNew){
           const { error } = await client.from('operacoes').insert(payload);
-          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); }
+          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); refreshAfterOpChange(); }
           else showToast('Erro ao salvar: ' + error.message, 'err');
         } else {
           const { error } = await client.from('operacoes').update(payload).eq('id', op.id);
-          if(!error){ $('editModal').classList.remove('open'); showToast('Operação salva.', 'ok'); await loadOps(); }
+          if(!error){
+            $('editModal').classList.remove('open');
+            await spawnFreebetIfNeeded(op, payload);
+            showToast('Operação salva.', 'ok');
+            await loadOps();
+            refreshAfterOpChange();
+          }
           else showToast('Erro ao salvar: ' + error.message, 'err');
         }
       };
@@ -2238,7 +2259,7 @@
       investimento: valor,
       status: 'resolvida',
       bankroll: activeBankroll,
-      detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false }, hora_operacao: agoraHoraBrasilia() }
+      detalhe: { pernas: [], multipla: { gera_freebet: true, freebet_usada_confirmada: false, freebet_independente: true }, hora_operacao: agoraHoraBrasilia() }
     };
     const { error } = await client.from('operacoes').insert(payload);
     if(error){ showToast('Erro ao salvar: ' + error.message, 'err'); return; }
