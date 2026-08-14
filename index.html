@@ -658,7 +658,7 @@
       data_operacao: op.data_operacao || hojeBrasilia(),
       casa: op.casa,
       nome: `Freebet (${op.nome || op.casa || 'operação'})`,
-      investimento: null,
+      investimento: 0,
       status: 'resolvida',
       bankroll: op.bankroll || activeBankroll,
       detalhe: { pernas: [], multipla: { gera_freebet:true, freebet_usada_confirmada:false, freebet_independente:true }, hora_operacao: agoraHoraBrasilia() }
