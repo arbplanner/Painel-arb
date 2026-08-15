@@ -382,6 +382,44 @@
   .rank-stat{text-align:right;}
   .rank-stat .rank-stat-label{font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted);}
   .rank-stat .rank-stat-val{font-family:'JetBrains Mono'; font-size:12.5px; font-weight:700;}
+
+  /* ---- Saldos das casas: painel independente da planilha ---- */
+  .saldos-toolbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap;}
+  .saldos-subtitle{color:var(--muted);font-size:12px;margin-top:3px;}
+  .saldos-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:20px;}
+  .saldo-summary-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+  .saldo-summary-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;}
+  .saldo-summary-value{font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;margin-top:7px;color:var(--text);}
+  .saldo-summary-value.pos{color:var(--green)} .saldo-summary-value.neg{color:var(--red)}
+  .saldos-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+  .saldo-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:15px;min-width:0;position:relative;overflow:hidden;}
+  .saldo-card:hover{border-color:#344057;}
+  .saldo-card-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid var(--line);}
+  .saldo-casa{display:flex;align-items:center;gap:9px;min-width:0;}
+  .saldo-casa-name{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .saldo-card-actions{display:flex;gap:5px;flex-shrink:0;}
+  .saldo-action{width:28px;height:28px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);border-radius:6px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;}
+  .saldo-action:hover{color:var(--text);border-color:#3b465a;} .saldo-action svg{width:14px;height:14px;}
+  .saldo-label{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-top:14px;}
+  .saldo-value{font-family:'JetBrains Mono',monospace;font-size:24px;line-height:1.1;font-weight:700;margin-top:6px;letter-spacing:-.02em;}
+  .saldo-value.negative{color:var(--red)} .saldo-value.empty{color:var(--muted);font-size:18px;}
+  .saldo-meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px;}
+  .saldo-meta{border:1px solid var(--line);background:#0b0f15;border-radius:7px;padding:9px 10px;min-width:0;}
+  .saldo-meta-label{font-size:8.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+  .saldo-meta-value{font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;margin-top:4px;color:var(--text);}
+  .saldo-meta-value.pos{color:var(--green)} .saldo-meta-value.neg{color:var(--red)}
+  .saldo-manual{margin-top:11px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--muted);font-size:10px;}
+  .saldo-manual-badge{padding:3px 7px;border-radius:20px;border:1px solid var(--line);background:var(--panel-2);color:var(--muted);font-weight:700;}
+  .saldo-manual-badge.manual{color:var(--green);border-color:var(--green);background:var(--green-dim);}
+  .saldos-empty{padding:45px 20px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px;background:rgba(18,22,30,.55);}
+  .saldo-edit-box{width:390px;max-width:100%;}
+  .saldo-edit-current{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);margin:2px 0 14px;}
+  .saldo-edit-input{width:100%;padding:12px 13px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:16px;outline:none;}
+  .saldo-edit-input:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(91,157,255,.12);}
+  .saldo-edit-help{font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.45;}
+  @media(max-width:1000px){.saldos-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+  @media(max-width:700px){.saldos-summary{grid-template-columns:1fr;}.saldos-grid{grid-template-columns:1fr;}}
+
 </style>
 </head>
 <body>
@@ -420,6 +458,10 @@
   <div class="side-item" id="sideRankingBtn" style="cursor:pointer;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></span>
     Ranking por casa
+  </div>
+  <div class="side-item" id="sideSaldosBtn" style="cursor:pointer;">
+    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M7 15h4"/><circle cx="17" cy="15" r="1"/></svg></span>
+    Saldos das Casas
   </div>
   <div class="side-item soon">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg></span>
@@ -495,6 +537,21 @@
       <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:8px;"></div>
     </div>
     <div id="editModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="saldoEditModal">
+  <div class="panel modal-box saldo-edit-box">
+    <div class="panel-title"><span class="left"><span class="dot"></span> Editar saldo</span><button class="icon-sq-btn" id="saldoEditClose" title="Fechar">×</button></div>
+    <div id="saldoEditCasa" style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:3px;">Casa</div>
+    <div class="saldo-edit-current" id="saldoEditCurrent">Saldo atual: —</div>
+    <input id="saldoEditInput" class="saldo-edit-input" type="number" step="0.01" placeholder="Ex.: 500,00">
+    <div class="saldo-edit-help">Este valor é salvo somente neste navegador, separado das operações. Alterá-lo não modifica nenhuma aposta, lucro, ROI ou registro no Supabase.</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+      <button class="btn btn-ghost" id="saldoEditClear">Limpar saldo</button>
+      <button class="btn btn-ghost" id="saldoEditCancel">Cancelar</button>
+      <button class="btn btn-blue" id="saldoEditSave">Salvar saldo</button>
+    </div>
   </div>
 </div>
 
@@ -616,6 +673,18 @@
     <div class="panel-title"><span class="left"><span class="dot"></span> Ranking por casa (período filtrado)</span></div>
     <div id="rankCasasWrap"></div>
   </div>
+</div>
+
+<div id="viewSaldosCasas" style="display:none;">
+  <div class="saldos-toolbar">
+    <div>
+      <div class="panel-title" style="margin-bottom:2px;"><span class="left"><span class="dot"></span> Saldos das Casas</span></div>
+      <div class="saldos-subtitle">Dados das operações por casa + saldo atual informado manualmente.</div>
+    </div>
+    <button class="btn btn-ghost" id="btnSaldosRecarregar" style="padding:7px 12px;">↻ Atualizar dados</button>
+  </div>
+  <div class="saldos-summary" id="saldosSummary"></div>
+  <div id="saldosCasasGrid" class="saldos-grid"></div>
 </div>
 
 <div id="viewBankrolls" style="display:none;">
@@ -978,6 +1047,7 @@
   $('sideBankrollsBtn').onclick = ()=>{ renderBankrollsGrid(); showView('bankrolls'); };
   $('sideFreebetsBtn').onclick = ()=>{ renderFreebetsList(); showView('freebets'); };
   $('sideRankingBtn').onclick = ()=>{ renderRankCasas(); showView('ranking'); };
+  $('sideSaldosBtn').onclick = ()=>{ renderSaldosCasas(); showView('saldos'); };
   $('btnNovoBankroll').onclick = ()=>{
     const nome = prompt('Nome do novo bankroll:');
     if(!nome) return;
@@ -995,6 +1065,13 @@
   $('sideCasasBtn').onclick = ()=>{ renderCasasModal(); $('casasModal').classList.add('open'); };
   $('casasModalClose').onclick = ()=> $('casasModal').classList.remove('open');
   $('casasModal').addEventListener('click', (e)=>{ if(e.target.id==='casasModal') $('casasModal').classList.remove('open'); });
+  $('saldoEditClose').onclick = closeSaldoEdit;
+  $('saldoEditCancel').onclick = closeSaldoEdit;
+  $('saldoEditSave').onclick = salvarSaldoManual;
+  $('saldoEditClear').onclick = ()=>{ $('saldoEditInput').value=''; salvarSaldoManual(); };
+  $('saldoEditModal').addEventListener('click', e=>{ if(e.target.id==='saldoEditModal') closeSaldoEdit(); });
+  $('saldoEditInput').addEventListener('keydown', e=>{ if(e.key==='Enter') salvarSaldoManual(); });
+  $('btnSaldosRecarregar').onclick = async ()=>{ if(client) await loadOps(); else renderSaldosCasas(); };
   $('btnAddCasa').onclick = ()=>{
     const val = $('novaCasaInput').value.trim().toUpperCase();
     if(!val) return;
@@ -1027,6 +1104,7 @@
     renderBankrollsGrid();
     renderFreebetsList();
     updateFreebetsBadge();
+    renderSaldosCasas();
     openFromUrlIfNeeded();
   }
 
@@ -1099,7 +1177,7 @@
       card.onclick = (e)=>{
         if(e.target.closest('[data-bankrollgear]') || e.target.closest('[data-bankrolldel]')) return;
         setActiveBankroll(card.dataset.selectbankroll);
-        renderCards(); renderAll(); renderBankrollsGrid(); updateFreebetsBadge();
+        renderCards(); renderAll(); renderBankrollsGrid(); renderSaldosCasas(); updateFreebetsBadge();
         showView('dashboard');
       };
     });
@@ -1116,7 +1194,7 @@
         if(list.length===0) list = ['Teste'];
         saveBankrolls(list);
         if(activeBankroll===name) setActiveBankroll(list[0]);
-        renderCards(); renderAll(); renderBankrollsGrid(); updateFreebetsBadge();
+        renderCards(); renderAll(); renderBankrollsGrid(); renderSaldosCasas(); updateFreebetsBadge();
       };
     });
     grid.querySelectorAll('[data-bankrollgear]').forEach(btn=>{
@@ -1151,6 +1229,48 @@
     });
   }
 
+  // ---- Saldos das casas (independente das operações) ----
+  // Os saldos manuais ficam somente no navegador. Esta área não escreve na tabela operacoes.
+  const SALDOS_CASAS_KEY = 'arbplanner_saldos_casas_v1';
+  function loadSaldosCasas(){ try{return JSON.parse(localStorage.getItem(SALDOS_CASAS_KEY))||{};}catch(e){return {};} }
+  function saveSaldosCasas(obj){ localStorage.setItem(SALDOS_CASAS_KEY,JSON.stringify(obj)); }
+  function saldoKey(casa){ return `${activeBankroll}::${String(casa||'').trim().toUpperCase()}`; }
+  function getSaldoManual(casa){ const v=loadSaldosCasas()[saldoKey(casa)]; return (v===null||v===undefined||v==='')?null:Number(v); }
+  function casasUsadasNoBankroll(){
+    return [...new Set(ops.filter(o=>(o.bankroll||'Teste')===activeBankroll && !(o.detalhe&&o.detalhe.multipla&&o.detalhe.multipla.freebet_independente) && o.casa && String(o.casa).trim()).map(o=>String(o.casa).trim().toUpperCase()))].sort();
+  }
+  function dadosSaldoCasa(casa){
+    const lista=ops.filter(o=>(o.bankroll||'Teste')===activeBankroll && String(o.casa||'').trim().toUpperCase()===casa && !(o.detalhe&&o.detalhe.multipla&&o.detalhe.multipla.freebet_independente));
+    let pnl=0,resolvidas=0,pendentes=0;
+    lista.forEach(o=>{const p=profitOf(o); if(o.status==='resolvida'&&p!=null){pnl+=Number(p)||0;resolvidas++;}else pendentes++;});
+    return {pnl,resolvidas,pendentes,total:lista.length};
+  }
+  function openSaldoEdit(casa){
+    const modal=$('saldoEditModal'), atual=getSaldoManual(casa);
+    $('saldoEditCasa').textContent=casa;
+    $('saldoEditCurrent').textContent=atual==null?'Saldo atual: não informado':`Saldo atual: ${fmt(atual)}`;
+    $('saldoEditInput').value=atual==null?'':Number(atual).toFixed(2);
+    modal.dataset.casa=casa; modal.classList.add('open'); setTimeout(()=>$('saldoEditInput').focus(),50);
+  }
+  function closeSaldoEdit(){ $('saldoEditModal').classList.remove('open'); }
+  function salvarSaldoManual(){
+    const casa=$('saldoEditModal').dataset.casa; if(!casa)return;
+    const raw=$('saldoEditInput').value.trim().replace(',','.'); const all=loadSaldosCasas();
+    if(raw===''){delete all[saldoKey(casa)];saveSaldosCasas(all);closeSaldoEdit();renderSaldosCasas();showToast(`Saldo de ${casa} removido do painel manual.`,'ok');return;}
+    const valor=Number(raw); if(!Number.isFinite(valor)){showToast('Informe um saldo válido.','warn');return;}
+    all[saldoKey(casa)]=Number(valor.toFixed(2));saveSaldosCasas(all);closeSaldoEdit();renderSaldosCasas();showToast(`Saldo de ${casa} atualizado.`,'ok');
+  }
+  function renderSaldosCasas(){
+    const grid=$('saldosCasasGrid'),summary=$('saldosSummary'); if(!grid||!summary)return;
+    const casas=casasUsadasNoBankroll(); let totalSaldo=0,casasComSaldo=0,pnlTotal=0;
+    const dados=casas.map(casa=>{const d=dadosSaldoCasa(casa),saldo=getSaldoManual(casa);if(saldo!=null){totalSaldo+=saldo;casasComSaldo++;}pnlTotal+=d.pnl;return {casa,d,saldo};});
+    summary.innerHTML=`<div class="saldo-summary-card"><div class="saldo-summary-label">Saldo informado</div><div class="saldo-summary-value ${totalSaldo<0?'neg':'pos'}">${casasComSaldo?fmt(totalSaldo):'—'}</div></div><div class="saldo-summary-card"><div class="saldo-summary-label">Casas com saldo</div><div class="saldo-summary-value">${casasComSaldo} <span style="font-size:11px;color:var(--muted);font-family:Inter">/ ${casas.length}</span></div></div><div class="saldo-summary-card"><div class="saldo-summary-label">P&L histórico da planilha</div><div class="saldo-summary-value ${pnlTotal<0?'neg':'pos'}">${fmt(pnlTotal)}</div></div>`;
+    if(!casas.length){grid.className='';grid.innerHTML='<div class="saldos-empty">Nenhuma casa encontrada neste bankroll. Assim que uma operação tiver uma casa cadastrada, ela aparecerá aqui.</div>';return;}
+    grid.className='saldos-grid';
+    grid.innerHTML=dados.map(({casa,d,saldo})=>{const pnlClass=d.pnl<0?'neg':'pos',saldoCls=saldo==null?'empty':(saldo<0?'negative':'');return `<div class="saldo-card"><div class="saldo-card-head"><div class="saldo-casa">${casaBadgeHtml(casa,28)}<div class="saldo-casa-name">${casa}</div></div><div class="saldo-card-actions"><button class="saldo-action" data-saldoedit="${casa}" title="Informar / editar saldo">${ICON_EDIT}</button></div></div><div class="saldo-label">Saldo disponível</div><div class="saldo-value ${saldoCls}">${saldo==null?'Não informado':fmt(saldo)}</div><div class="saldo-meta-grid"><div class="saldo-meta"><div class="saldo-meta-label">P&L histórico</div><div class="saldo-meta-value ${pnlClass}">${fmt(d.pnl)}</div></div><div class="saldo-meta"><div class="saldo-meta-label">Operações</div><div class="saldo-meta-value">${d.total}</div></div><div class="saldo-meta"><div class="saldo-meta-label">Resolvidas</div><div class="saldo-meta-value pos">${d.resolvidas}</div></div><div class="saldo-meta"><div class="saldo-meta-label">Pendentes</div><div class="saldo-meta-value ${d.pendentes?'':'pos'}">${d.pendentes}</div></div></div><div class="saldo-manual"><span>Fonte do saldo</span><span class="saldo-manual-badge ${saldo!=null?'manual':''}">${saldo!=null?'MANUAL':'NÃO INFORMADO'}</span></div></div>`;}).join('');
+    grid.querySelectorAll('[data-saldoedit]').forEach(btn=>btn.onclick=()=>openSaldoEdit(btn.dataset.saldoedit));
+  }
+
   let currentView = 'dashboard';
   function showView(view){
     currentView = view;
@@ -1158,10 +1278,12 @@
     $('viewBankrolls').style.display = view==='bankrolls' ? 'block' : 'none';
     $('viewFreebets').style.display = view==='freebets' ? 'block' : 'none';
     $('viewRanking').style.display = view==='ranking' ? 'block' : 'none';
+    $('viewSaldosCasas').style.display = view==='saldos' ? 'block' : 'none';
     $('sideDashboardBtn').classList.toggle('active', view==='dashboard');
     $('sideBankrollsBtn').classList.toggle('active', view==='bankrolls');
     $('sideFreebetsBtn').classList.toggle('active', view==='freebets');
     $('sideRankingBtn').classList.toggle('active', view==='ranking');
+    $('sideSaldosBtn').classList.toggle('active', view==='saldos');
     $('btnAdicionarApostaLabel').textContent = view==='freebets' ? 'Adicionar freebet' : 'Adicionar aposta';
   }
 
