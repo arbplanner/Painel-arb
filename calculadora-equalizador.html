@@ -83,6 +83,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
 @media(max-width:1150px){.grid{grid-template-columns:1fr 1fr 1fr}.output{grid-column:1/-1}.remove{align-self:center}}
 @media(max-width:760px){.top-row{flex-direction:column;align-items:stretch}.rounding-wrap{min-width:0}.grid{grid-template-columns:1fr 1fr}.bottom-metrics{grid-template-columns:1fr}.metric{border-right:0;border-bottom:1px solid #1b2b40;padding:12px 0}.metric:last-child{border-bottom:0}.summary-head{flex-wrap:wrap}.summary-actions{width:100%;margin-left:0}}
 </style>
+
+<style>
+  /* Compactação visual: ~10% menor, mantendo o layout proporcional. */
+  body{font-size:14px}
+  .wrap{max-width:1500px;padding:14px}
+  .topbar,.entries,.summary{border-radius:15px}
+  .topbar{padding:15px 18px;margin-bottom:12px}
+  .entry{padding:13px 15px;margin-bottom:11px}
+  .summary-head{padding:13px 17px}
+  .summary-table th,.summary-table td{padding:10px 16px;font-size:11px}
+  .bottom-metrics{padding:15px 17px}
+</style>
+
 </head>
 <body>
 <div class="wrap">
@@ -152,7 +165,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
 <script>
 const BRL=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
 const money=v=>BRL.format(Number(v||0));
-const num=v=>Number.isFinite(Number(v))?Number(v):0;
+const num=v=>{
+  if(v===null||v===undefined||v==="") return 0;
+  const s=String(v).replace(/\s/g,"").replace(",",".");
+  const n=Number(s);
+  return Number.isFinite(n)?n:0;
+};
+const fmtInput=v=>{
+  const n=Number(v);
+  return Number.isFinite(n)&&n!==0 ? String(n).replace(".",",") : (n===0?"0":"");
+};
 const round2=v=>Math.round((Number(v)+Number.EPSILON)*100)/100;
 
 let baseStake=0;
@@ -290,69 +312,161 @@ function renderEntries(){
         <div class="entry-sub">${i===0?"Valor base fixado por você":"Valor calculado para equalizar a operação"}</div>
         <div class="entry-num">${i+1}</div>
       </div>
+
       <div class="grid">
         <div class="field">
           <label>${b.type==="lay"?"APOSTA (LUCRO)":"VALOR (STAKE)"}</label>
-          <input class="input stake-input" type="number" min="0" step="0.01" value="${i===0?round2(baseStake):round2(roundStake(solution?.stakes?.[i]||0))}" ${i?"readonly":""}>
+          <input class="input stake-input" type="text" inputmode="decimal"
+                 value="${i===0?fmtInput(baseStake):fmtInput(round2(roundStake(solution?.stakes?.[i]||0)))}" ${i?"readonly":""}>
         </div>
-        <div class="field"><label>ODD</label><input class="input odd" type="number" min="0" step="0.01" value="${b.odd||0}"></div>
-        <div class="field"><label>TIPO</label><div class="type">
-          <button type="button" class="back ${b.type==="back"?"active":""}">Back</button>
-          <button type="button" class="lay ${b.type==="lay"?"active":""}">Lay</button>
-        </div></div>
-        ${b.type==="lay"?`<div class="field"><label>COMISSÃO</label><input class="input commission" type="number" min="0" max="100" step="0.01" value="${b.commission||0}"></div>`:`<div class="field"></div>`}
-        <label class="freebet"><input type="checkbox" class="freebet-box" ${b.freebet?"checked":""} ${b.type==="lay"?"disabled":""}> Usar Freebet</label>
+
+        <div class="field">
+          <label>ODD</label>
+          <input class="input odd" type="text" inputmode="decimal" value="${fmtInput(b.odd)}">
+        </div>
+
+        <div class="field">
+          <label>TIPO</label>
+          <div class="type">
+            <button type="button" class="back ${b.type==="back"?"active":""}">Back</button>
+            <button type="button" class="lay ${b.type==="lay"?"active":""}">Lay</button>
+          </div>
+        </div>
+
+        ${b.type==="lay"?`
+          <div class="field">
+            <label>COMISSÃO</label>
+            <input class="input commission" type="text" inputmode="decimal" value="${fmtInput(b.commission)}">
+          </div>`:`<div class="field"></div>`}
+
+        <label class="freebet">
+          <input type="checkbox" class="freebet-box" ${b.freebet?"checked":""} ${b.type==="lay"?"disabled":""}>
+          Usar Freebet
+        </label>
+
         <div class="output ${i===0?"base":""}">
           <div class="k">${i===0?"VALOR BASE":"APOSTAR"}</div>
-          <div class="v">${money(i===0?baseStake:(solution?.stakes?.[i]||0))}</div>
+          <div class="v" data-output-stake>${money(i===0?baseStake:(solution?.stakes?.[i]||0))}</div>
         </div>
+
         <button type="button" class="remove" ${bets.length<=2?"disabled":""}>×</button>
       </div>
     </div>`).join("");
 
-  root.querySelectorAll(".entry").forEach(card=>{
-    const id=String(card.dataset.id), idx=bets.findIndex(b=>String(b.id)===id), bet=bets[idx];
+  bindEntryEvents();
+  updateEntryOutputs();
+}
+
+function bindEntryEvents(){
+  document.querySelectorAll(".entry").forEach(card=>{
+    const id=String(card.dataset.id);
+    const idx=bets.findIndex(b=>String(b.id)===id);
+    const bet=bets[idx];
+
     const title=card.querySelector(".entry-title");
-    title.addEventListener("input",e=>{bet.name=e.target.value;calculate();});
+    title.addEventListener("input",e=>{
+      bet.name=e.target.value;
+      calculate();
+    });
+
     const odd=card.querySelector(".odd");
-    odd.addEventListener("input",e=>{bet.odd=num(e.target.value);calculate();});
+    odd.addEventListener("input",e=>{
+      bet.odd=num(e.target.value);
+      calculate();
+    });
+
     const stake=card.querySelector(".stake-input");
     if(idx===0){
-      stake.addEventListener("input",e=>{baseStake=Math.max(0,num(e.target.value));calculate();});
+      stake.addEventListener("input",e=>{
+        baseStake=Math.max(0,num(e.target.value));
+        calculate();
+      });
     }
-    card.querySelector(".back").addEventListener("click",()=>{bet.type="back";bet.freebet=false;renderEntries();calculate();});
-    card.querySelector(".lay").addEventListener("click",()=>{bet.type="lay";bet.freebet=false;renderEntries();calculate();});
-    const c=card.querySelector(".commission");
-    if(c)c.addEventListener("input",e=>{bet.commission=Math.max(0,Math.min(100,num(e.target.value)));calculate();});
-    card.querySelector(".freebet-box").addEventListener("change",e=>{bet.freebet=e.target.checked;calculate();});
+
+    const commission=card.querySelector(".commission");
+    if(commission){
+      commission.addEventListener("input",e=>{
+        bet.commission=Math.max(0,Math.min(100,num(e.target.value)));
+        calculate();
+      });
+    }
+
+    card.querySelector(".back").addEventListener("click",()=>{
+      if(bet.type==="back") return;
+      bet.type="back";
+      bet.freebet=false;
+      renderEntries();
+      calculate();
+    });
+
+    card.querySelector(".lay").addEventListener("click",()=>{
+      if(bet.type==="lay") return;
+      bet.type="lay";
+      bet.freebet=false;
+      renderEntries();
+      calculate();
+    });
+
+    card.querySelector(".freebet-box").addEventListener("change",e=>{
+      bet.freebet=e.target.checked;
+      calculate();
+    });
+
     card.querySelector(".remove").addEventListener("click",()=>{
-      if(bets.length<=2)return;
-      bets=bets.filter(x=>String(x.id)!==id);renderEntries();calculate();
+      if(bets.length<=2) return;
+      bets=bets.filter(x=>String(x.id)!==id);
+      renderEntries();
+      calculate();
     });
   });
 }
+
+function updateEntryOutputs(){
+  document.querySelectorAll(".entry").forEach(card=>{
+    const id=String(card.dataset.id);
+    const idx=bets.findIndex(b=>String(b.id)===id);
+    if(idx<0) return;
+    const out=card.querySelector("[data-output-stake]");
+    if(out) out.textContent=money(idx===0?baseStake:(solution?.stakes?.[idx]||0));
+
+    if(idx>0){
+      const input=card.querySelector(".stake-input");
+      if(input && solution && !solution.error){
+        input.value=fmtInput(round2(roundStake(solution.stakes[idx])));
+      }
+    }
+  });
+}
+
 function scenarioLabel(s,sol){
   if(sol.model.mode==="same-selection") return s==="__WIN__"?"Seleção vence":"Seleção não vence";
   return s==="__OUTROS__"?"Outros resultados":s;
 }
 function calculate(){
   solution=solveOperation();
+
+  const body=document.getElementById("summaryBody");
+
   if(solution.error){
-    renderEntries();
-    document.getElementById("summaryBody").innerHTML="";
+    body.innerHTML="";
     document.getElementById("realInvestment").textContent="R$ 0,00";
     document.getElementById("minProfit").textContent="R$ 0,00";
+    document.getElementById("minProfit").className="mv";
     document.getElementById("roi").textContent="0,00%";
+    document.getElementById("roi").className="mv";
     document.getElementById("duploValue").textContent="R$ 0,00";
     document.getElementById("duploRoi").textContent="+0,0%";
     document.getElementById("status").textContent=solution.error;
     document.getElementById("status").style.color="var(--muted)";
+    updateEntryOutputs();
     return;
   }
-  renderEntries();
-  const body=document.getElementById("summaryBody");
+
+  updateEntryOutputs();
+
   body.innerHTML=solution.outcomes.map(o=>{
-    const pos=o.profit>=0, idx=bets.findIndex(b=>b.resultKey===o.scenario);
+    const pos=o.profit>=0;
+    const idx=bets.findIndex(b=>b.resultKey===o.scenario);
     const used=idx>=0?solution.stakes[idx]:solution.stakes[0];
     return `<tr>
       <td>${escapeHtml(scenarioLabel(o.scenario,solution))}</td>
@@ -362,13 +476,14 @@ function calculate(){
       <td>${money(o.gross)}</td>
     </tr>`;
   }).join("");
+
   document.getElementById("realInvestment").textContent=money(solution.realInvestment);
   document.getElementById("minProfit").textContent=(solution.minProfit>=0?"+":"−")+money(Math.abs(solution.minProfit));
   document.getElementById("minProfit").className="mv "+(solution.minProfit>=0?"pos":"neg");
   document.getElementById("roi").textContent=(solution.roi>=0?"+":"−")+Math.abs(solution.roi).toFixed(2)+"%";
   document.getElementById("roi").className="mv "+(solution.roi>=0?"pos":"neg");
   document.getElementById("duploValue").textContent=money(solution.duplo);
-  document.getElementById("duploRoi").textContent=(solution.realInvestment?("+"+(solution.duplo/solution.realInvestment*100).toFixed(1)+"%"):"+0,0%");
+  document.getElementById("duploRoi").textContent=solution.realInvestment?("+"+(solution.duplo/solution.realInvestment*100).toFixed(1)+"%"):"+0,0%";
   document.getElementById("status").textContent="";
 }
 function addBet(){
@@ -387,7 +502,10 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
   document.querySelector('input[name="rounding"][value="none"]').checked=true;
   renderEntries();calculate();
 });
-document.querySelectorAll('input[name="rounding"]').forEach(r=>r.addEventListener("change",calculate));
+document.querySelectorAll('input[name="rounding"]').forEach(r=>r.addEventListener("change",()=>{
+  renderEntries();
+  calculate();
+}));
 
 document.getElementById("duploBtn").addEventListener("click",()=>{
   document.getElementById("duploPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
