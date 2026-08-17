@@ -351,15 +351,24 @@ function solveOperation(){
     return sum+st;
   },0);
 
-  // Duplo Green follows the same behavior as the reference calculator:
-  // Lay involved -> not applicable.
-  // Only Back legs -> theoretical combined potential; with 3+ mutually
-  // exclusive results a warning is shown in the UI.
+  // Duplo Green:
+  // - If a Lay exists, it is not applicable.
+  // - With only Back selections, choose the TWO selections whose combined
+  //   gross return is highest, then subtract the total real investment.
   const hasLay=bets.some(b=>b.type==="lay");
   let duplo=0;
+  let duploPair=[];
   if(!hasLay){
-    const backNet=bets.reduce((sum,b,i)=>sum+(b.type==="back"?clean[i]*(b.odd-1):0),0);
-    duplo=Math.max(0,backNet-realInvestment);
+    const grossBackReturns=bets.map((b,i)=>clean[i]*b.odd);
+    for(let i=0;i<bets.length;i++){
+      for(let j=i+1;j<bets.length;j++){
+        const candidate=grossBackReturns[i]+grossBackReturns[j]-realInvestment;
+        if(candidate>duplo){
+          duplo=candidate;
+          duploPair=[i,j];
+        }
+      }
+    }
   }
 
   return {
@@ -370,6 +379,7 @@ function solveOperation(){
     diff,
     realInvestment,
     duplo:Math.max(0,duplo),
+    duploPair,
     hasLay,
     roi:realInvestment?minProfit/realInvestment*100:0
   };
@@ -577,6 +587,9 @@ function calculate(){
     }
   }else{
     document.getElementById("duploValue").innerHTML=money(solution.duplo)+` <span id="duploRoi" style="font-size:10px;color:#54d9aa;margin-left:5px;">${solution.realInvestment?("+"+(solution.duplo/solution.realInvestment*100).toFixed(1)+"%"):"+0,0%"}</span>`;
+    const pairNames=(solution.duploPair||[]).map(i=>bets[i]?.name).filter(Boolean);
+    const pairEl=document.getElementById("duploPair");
+    if(pairEl) pairEl.textContent=pairNames.length===2 ? pairNames.join(" + ") : "";
     const warn=document.getElementById("duploWarn");
     if(warn){
       warn.textContent="⚠ Com 3+ resultados do mesmo mercado (mutuamente exclusivos), esse valor soma apostas que não podem bater ao mesmo tempo — use só como referência teórica, não como cenário real.";
