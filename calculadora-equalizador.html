@@ -96,6 +96,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
   .bottom-metrics{padding:15px 17px}
 </style>
 
+
+<style>
+.entry-title::placeholder{color:#6f7f95;opacity:.78}
+.entry-title:focus::placeholder{opacity:.38}
+</style>
+
 </head>
 <body>
 <div class="wrap">
@@ -308,7 +314,8 @@ function renderEntries(){
   root.innerHTML=bets.map((b,i)=>`
     <div class="entry ${i===0?"base":""}" data-id="${b.id}">
       <div class="entry-head">
-        <input class="entry-title" value="${escapeHtml(b.name)}" placeholder="">
+        <input class="entry-title" value="${escapeHtml(b.name)}"
+               placeholder="${i===0?"Casa de Aposta (Ex: Betano)":"Casa de Aposta (Ex: Betano)"}">
         <div class="entry-sub">${i===0?"Valor base fixado por você":"Valor calculado para equalizar a operação"}</div>
         <div class="entry-num">${i+1}</div>
       </div>
