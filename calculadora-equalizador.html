@@ -114,53 +114,39 @@ table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:12px 10p
   }
 </style>
 
-
-<style>
-.operation-line{display:flex;align-items:flex-end;gap:16px}
-.operation-name-wrap{flex:1;min-width:260px}
-.operation-name-wrap input{
-  width:100%;height:44px;background:#050b16;border:1px solid #2a3d59;border-radius:10px;
-  color:#f0f4fb;padding:0 12px;font-size:15px;outline:none
-}
-.operation-name-wrap input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,173,0,.1)}
-.rounding-area{flex:0 0 auto}
-.rounding-options{display:flex;gap:8px}
-.round-option{margin:0;display:flex;align-items:center;gap:6px;height:44px;padding:0 11px;
-  border:1px solid #2a3d59;border-radius:10px;background:#050b16;color:#b8c5d7;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
-.round-option input{width:14px!important;height:14px!important;accent-color:var(--accent)}
-@media(max-width:760px){.operation-line{flex-direction:column;align-items:stretch}.rounding-area{width:100%}.rounding-options{flex-wrap:wrap}}
-.conn-box{display:none;flex-direction:column;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #1d2b41}
-.conn-box.open{display:flex}
-.conn-note{font-size:11px;color:#8fa0b8;line-height:1.45}
-.conn-field{display:flex;flex-direction:column;gap:5px}
-.conn-field label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#8fa0b8;font-weight:900}
-.conn-field input{height:40px}
-.conn-toggle{cursor:pointer;user-select:none}
-.edit-link{margin-left:8px;border:1px solid rgba(37,223,134,.35);background:rgba(37,223,134,.08);color:#63e7a8;border-radius:7px;padding:4px 8px;font-size:11px;font-weight:900;cursor:pointer}
-</style>
-
 </head>
 <body>
 <div class="wrap">
 
-  <div class="card operation-config">
-    <div class="operation-line">
-      <div class="operation-name-wrap">
-        <label>NOME DA OPERAÇÃO</label>
-        <input id="operationName" type="text" value="Corinthians vs Cruzeiro" placeholder="Ex.: Corinthians vs Cruzeiro">
+  <div class="card">
+    <div class="top">
+      <div>
+        <label>VALOR BASE DA PRIMEIRA APOSTA</label>
+        <input id="base" type="number" min="0.01" step="0.01" value="100">
       </div>
-      <div class="rounding-area">
-        <div class="rounding-title">ARREDONDAMENTO</div>
-        <div class="rounding-options">
-          <label class="round-option"><input type="radio" name="rounding" value="none" checked><span>Desativado</span></label>
-          <label class="round-option"><input type="radio" name="rounding" value="0.5"><span>0,50</span></label>
-          <label class="round-option"><input type="radio" name="rounding" value="1"><span>1,00</span></label>
-        </div>
+      <div>
+        <label>MODO DE CÁLCULO</label>
+        <div class="info">A primeira aposta fica fixa. As demais são calculadas para igualar o resultado líquido nos cenários possíveis.</div>
       </div>
     </div>
-  </div>
-
-  <div class="top-hint">
+    <div class="rounding-controls">
+      <div class="rounding-title">ARREDONDAR STAKES CALCULADAS</div>
+      <div class="rounding-options">
+        <label class="round-option">
+          <input type="radio" name="rounding" value="none" checked>
+          <span>Desativado</span>
+        </label>
+        <label class="round-option">
+          <input type="radio" name="rounding" value="0.5">
+          <span>0,50 em 0,50</span>
+        </label>
+        <label class="round-option">
+          <input type="radio" name="rounding" value="1">
+          <span>R$ 1 em R$ 1</span>
+        </label>
+      </div>
+    </div>
+    <div class="top-hint">
       Back e Lay podem ser usados em qualquer campo. <strong>Quando escolher Lay, a comissão aparece automaticamente.</strong> Em 2 linhas Back + Lay, elas são tratadas automaticamente como lados opostos da mesma seleção.
       Você também pode repetir o mesmo resultado em duas linhas para montar uma operação Back + Lay sobre a mesma seleção.
     </div>
@@ -195,15 +181,6 @@ table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:12px 10p
       <button class="btn primary" id="send" type="button">Enviar aposta para a planilha</button>
     </div>
     <div id="status" class="status"></div>
-    <div class="divider-title conn-toggle" id="connToggle">▸ Conexão com o painel</div>
-    <div id="connBox" class="conn-box">
-      <div class="conn-note">A calculadora abre o seu painel e usa a própria janela "Adicionar aposta" e o próprio botão "Salvar".</div>
-      <div class="conn-field">
-        <label>URL do painel</label>
-        <input id="painelUrl" type="text" placeholder="https://seusite.github.io/Painel-arb/">
-      </div>
-      <button class="btn" id="btnSaveConn" type="button">Salvar URL do painel</button>
-    </div>
   </div>
 </div>
 
@@ -211,14 +188,13 @@ table{width:100%;border-collapse:collapse;margin-top:14px}th,td{padding:12px 10p
 const BRL=new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
 const money=v=>BRL.format(Number(v||0));
 const num=v=>Number.isFinite(Number(v))?Number(v):0;
-const ENDPOINT="";
+
 
 let bets=[
   {id:1,name:"Time A",odd:1.50,type:"back",commission:0,freebet:false},
   {id:2,name:"Empate",odd:3.50,type:"back",commission:0,freebet:false}
 ];
 let solution=null;
-let baseStake=100;
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
@@ -255,7 +231,7 @@ function renderBets(){
         <div>
           <label>VALOR DA APOSTA</label>
           <input class="stake-input" type="number" min="0" step="0.01"
-                 value="${i===0 ? Number(baseStake.toFixed(2)) : Number(roundStake(solution && solution.stakes ? solution.stakes[i] : 0).toFixed(2))}"
+                 value="${i===0 ? Number(document.getElementById("base")?.value || 100).toFixed(2) : Number(roundStake(solution && solution.stakes ? solution.stakes[i] : 0)).toFixed(2)}"
                  ${i===0 ? "" : "readonly"}>
         </div>
 
@@ -288,7 +264,7 @@ function renderBets(){
 
         <div class="output">
           <span class="label">${i===0?"VALOR BASE":"APOSTAR"}</span>
-          <span class="val stake">${i===0 ? money(Number(baseStake.toFixed(2))) : money(Number(roundStake(solution?.stakes?.[i]||0).toFixed(2)))}</span>
+          <span class="val stake">${i===0 ? money(Number(document.getElementById("base")?.value||100).toFixed(2)) : money(Number(roundStake(solution?.stakes?.[i]||0).toFixed(2)))}</span>
         </div>
 
         <button type="button" class="remove" ${bets.length<=2?"disabled":""}>×</button>
@@ -307,15 +283,8 @@ function renderBets(){
     odd.addEventListener("input",e=>{bet.odd=num(e.target.value);calculate();});
 
     const stakeInput=card.querySelector(".stake-input");
-    const index=bets.findIndex(item=>String(item.id)===id);
-    if(index===0 && stakeInput){
-      stakeInput.addEventListener("input",e=>{
-        baseStake=Math.max(0,num(e.target.value));
-        const out=card.querySelector(".stake");
-        if(out) out.textContent=money(baseStake);
-        calculate();
-      });
-    }else if(stakeInput){
+    if(stakeInput && Number(card.querySelector(".num").textContent)!==1){
+      // Calculated stake is readonly. Keep the visual value synced.
       stakeInput.addEventListener("focus",e=>e.target.blur());
     }
 
@@ -421,7 +390,7 @@ function profitCoeff(bet,scenario,model){
 }
 
 function solveOperation(){
-  const base=Math.max(0,baseStake);
+  const base=Math.max(0,num(document.getElementById("base").value));
   if(base<=0) return {error:"Informe um valor base maior que zero."};
   if(bets.length<2) return {error:"A calculadora precisa de pelo menos 2 apostas."};
   if(bets.some(b=>b.odd<1.01)) return {error:"Informe uma odd válida (mínimo 1,01) em todos os campos."};
@@ -501,7 +470,7 @@ function solveOperation(){
 
 function calculate(){
   solution=solveOperation();
-  document.getElementById("baseOut").textContent=money(baseStake);
+  document.getElementById("baseOut").textContent=money(num(document.getElementById("base").value));
 
   const alert=document.getElementById("alert");
   alert.className="alert";
@@ -569,7 +538,17 @@ function addBet(){
   renderBets();calculate();
 }
 document.getElementById("add").addEventListener("click",addBet);
-
+document.getElementById("base").addEventListener("input",()=>{
+  const card=document.querySelector('.bet-card[data-id="'+bets[0].id+'"]');
+  if(card){
+    const v=num(document.getElementById("base").value);
+    const input=card.querySelector(".stake-input");
+    const output=card.querySelector(".stake");
+    if(input) input.value=v;
+    if(output) output.textContent=money(v);
+  }
+  calculate();
+});
 
 document.querySelectorAll('input[name="rounding"]').forEach(radio=>{
   radio.addEventListener("change",()=>{
@@ -584,147 +563,39 @@ document.getElementById("reset").addEventListener("click",()=>{
     {id:1,name:"Time A",odd:1.50,type:"back",commission:0,freebet:false},
     {id:2,name:"Empate",odd:3.50,type:"back",commission:0,freebet:false}
   ];
-  baseStake=100;
+  document.getElementById("base").value=100;
   document.querySelector('input[name="rounding"][value="none"]').checked=true;
   renderBets();calculate();
 });
 
-const PANEL_URL_KEY="duploGreenPainelUrl";
-
-function initPanelConnection(){
-  document.getElementById("painelUrl").value=localStorage.getItem(PANEL_URL_KEY)||"";
-}
-document.getElementById("connToggle").onclick=()=>{
-  const box=document.getElementById("connBox");
-  const open=box.classList.contains("open");
-  box.classList.toggle("open",!open);
-  document.getElementById("connToggle").textContent=(open?"▸":"▾")+" Conexão com o painel";
-};
-document.getElementById("btnSaveConn").onclick=()=>{
-  const url=document.getElementById("painelUrl").value.trim();
-  const status=document.getElementById("status");
-  if(!url){status.textContent="Informe a URL do painel.";status.style.color="var(--red)";return;}
-  localStorage.setItem(PANEL_URL_KEY,url);
-  status.textContent="URL do painel salva.";
-  status.style.color="var(--green)";
-};
-
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-
-async function waitPanel(win,timeout=15000){
-  const started=Date.now();
-  while(Date.now()-started<timeout){
-    if(win.closed) throw new Error("O painel foi fechado.");
-    try{
-      const doc=win.document;
-      if(doc.readyState==="complete" && doc.getElementById("btnAdicionarAposta")) return doc;
-    }catch(e){}
-    await sleep(200);
-  }
-  throw new Error("A calculadora e o painel precisam estar na mesma origem para o preenchimento automático.");
-}
-function pset(doc,id,value){
-  const el=doc.getElementById(id);
-  if(!el) throw new Error("Campo do painel não encontrado: "+id);
-  el.value=value==null?"":String(value);
-  el.dispatchEvent(new Event("input",{bubbles:true}));
-  el.dispatchEvent(new Event("change",{bubbles:true}));
-}
-function pclick(doc,id){
-  const el=doc.getElementById(id);
-  if(!el) throw new Error("Botão do painel não encontrado: "+id);
-  el.click();
-}
-async function fillSavePanel(win){
-  const doc=await waitPanel(win);
-  pclick(doc,"btnAdicionarAposta");
-  const start=Date.now();
-  while(Date.now()-start<7000){
-    if(doc.getElementById("editModal")?.classList.contains("open") && doc.getElementById("em_nome")) break;
-    await sleep(100);
-  }
-  if(!doc.getElementById("em_nome")) throw new Error("A janela de edição do painel não abriu.");
-
-  const op=(document.getElementById("operationName").value||"").trim()||"Operação 1";
-  const now=new Date();
-  const date=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-  const time=now.toTimeString().slice(0,5);
-
-  pset(doc,"em_data",date); pset(doc,"em_hora",time); pset(doc,"em_nome",op);
-  if(doc.getElementById("mult_odd")) pset(doc,"mult_odd","1");
-  if(doc.getElementById("mult_stake")) pset(doc,"mult_stake","0");
-  if(doc.getElementById("mult_status")) pset(doc,"mult_status","pendente");
-
-  const mf=doc.getElementById("mult_freebet");
-  if(mf){mf.checked=bets.some(b=>b.freebet);mf.dispatchEvent(new Event("change",{bubbles:true}));}
-
-  for(let i=0;i<bets.length;i++){pclick(doc,"btnAddPerna");await sleep(100);}
-
-  for(let i=0;i<bets.length;i++){
-    const b=bets[i], p=i+1, key=p+"_0";
-    pset(doc,"head_"+p,b.name||("Resultado "+p));
-    const acao=doc.getElementById("acao_"+key);
-    if(!acao) throw new Error("Ação da perna "+p+" não encontrada.");
-    acao.value=b.type; acao.dispatchEvent(new Event("change",{bubbles:true}));
-    pset(doc,"odd_"+key,Number(b.odd.toFixed(2)));
-    pset(doc,"stk_"+key,Number(solution.stakes[i].toFixed(2)));
-
-    const com=doc.getElementById("com_"+key);
-    if(com){
-      com.value=b.type==="lay"?Number((b.commission||0).toFixed(2)):"";
-      com.dispatchEvent(new Event("input",{bubbles:true}));
-      com.dispatchEvent(new Event("change",{bubbles:true}));
-    }
-    const st=doc.getElementById("stf_"+key);
-    if(st){st.value="pendente";st.dispatchEvent(new Event("change",{bubbles:true}));}
-  }
-
-  await sleep(250);
-  pclick(doc,"em_save");
-
-  const saveStart=Date.now();
-  while(Date.now()-saveStart<12000){
-    const modal=doc.getElementById("editModal");
-    if(modal && !modal.classList.contains("open")) return true;
-    await sleep(150);
-  }
-  throw new Error("O próprio painel não confirmou o salvamento.");
-}
-
 document.getElementById("send").addEventListener("click",()=>{
   const status=document.getElementById("status");
-  const panelUrl=(localStorage.getItem("duploGreenPainelUrl")||"https://arbplanner.github.io/Painel-arb/").trim();
-
   if(!solution||solution.error){
     status.textContent="Corrija a operação antes de enviar.";
     status.style.color="var(--red)";
     return;
   }
 
-  const arred=getRoundingStep();
   const operationName=(document.getElementById("operationName").value||"").trim()||"Operação 1";
-
+  const rounding=getRoundingStep();
   const now=new Date();
-  const date=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
-  const time=now.toTimeString().slice(0,5);
+  const data=new Date(now.getTime()-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+  const hora=now.toTimeString().slice(0,5);
 
-  // Same-origin handoff: the panel itself will open its working "Add operation"
-  // modal and, when the user clicks its own Save button, it will perform the
-  // Supabase insert using the exact existing workflow.
   const firstBet=bets[0];
   const remainingBets=bets.slice(1);
 
   const importedOperation={
-    data_operacao:date,
-    nome:operationName,
+    data_operacao:data,
     casa:null,
-    investimento:Number(solution.base.toFixed(2)),
+    nome:operationName,
+    investimento:Number(solution.stakes[0].toFixed(2)),
     status:"pendente",
     detalhe:{
-      hora_operacao:time,
+      hora_operacao:hora,
 
-      // O primeiro campo da calculadora vira o ticket principal do painel.
-      // Assim, duas apostas viram exatamente: ticket principal + 1 perna.
+      // A primeira entrada vira o ticket principal do painel.
+      // As demais viram as pernas de cobertura.
       pernas:remainingBets.map((b,j)=>({
         perna_num:j+1,
         sub:null,
@@ -752,8 +623,8 @@ document.getElementById("send").addEventListener("click",()=>{
         acao_principal:firstBet.type,
         stake_principal:Number(solution.stakes[0].toFixed(2)),
         comissao_principal:Number((firstBet.commission||0).toFixed(2)),
-        arredondamento:arred||"none",
-        valor_base:Number(solution.base.toFixed(2)),
+        arredondamento:rounding||"none",
+        valor_base:Number(solution.stakes[0].toFixed(2)),
         resultado_equilibrado:Number(solution.balanced.toFixed(2)),
         diferenca_cenarios:Number(solution.diff.toFixed(2)),
         cenarios:solution.outcomes.map(o=>({
@@ -768,7 +639,8 @@ document.getElementById("send").addEventListener("click",()=>{
 
   localStorage.setItem("duploGreenCalculatorImport",JSON.stringify(importedOperation));
 
-  const target=panelUrl.replace(/\/?$/,"/")+"?calculatorImport=1";
+  const panelUrl="https://arbplanner.github.io/Painel-arb/";
+  const target=panelUrl+"?calculatorImport=1";
   const win=window.open(target,"_blank");
 
   if(!win){
@@ -777,11 +649,12 @@ document.getElementById("send").addEventListener("click",()=>{
     return;
   }
 
-  status.textContent="Operação enviada ao painel. A janela de Adicionar aposta será aberta automaticamente.";
+  status.textContent="Operação enviada ao painel. Confira os dados na janela aberta e clique em Salvar.";
   status.style.color="var(--green)";
 });
 
-initPanelConnection();
-calculate();</script>
+renderBets();
+calculate();
+</script>
 </body>
 </html>
