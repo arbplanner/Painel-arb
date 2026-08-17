@@ -37,6 +37,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
 .field label{display:block;font-size:10px;color:#92a3ba;font-weight:900;text-transform:uppercase;letter-spacing:.08em;margin-bottom:7px}
 .input,.select-like{width:100%;height:44px;background:#040a14;border:1px solid #263b58;border-radius:10px;color:#f2f6fb;padding:0 12px;outline:0}
 .input:focus{border-color:#6780a0}
+.input.invalid{border-color:var(--danger)!important; box-shadow:0 0 0 1px rgba(255,71,104,.35);}
 .input::placeholder{color:#62738b}
 .type{display:flex;height:44px}
 .type button{flex:1;border:1px solid #29405f;background:#07101c;color:#aab8cc;font-weight:900;cursor:pointer}
@@ -119,6 +120,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
           <label><input type="radio" name="rounding" value="1"> 1,00</label>
         </div>
       </div>
+      <div class="rounding-wrap" style="min-width:160px;">
+        <div class="lbl">FREEBET</div>
+        <div class="rounding">
+          <label style="gap:8px;"><input type="checkbox" id="operationGeraFreebet"> 🎁 Gera Freebet</label>
+        </div>
+      </div>
       <button id="addTop" class="add-btn" type="button">＋ Adicionar Seleção</button>
     </div>
   </div>
@@ -151,11 +158,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,
       <div class="duplo-icon">✦</div>
       <div class="duplo-copy">
         <div class="duplo-title">LUCRO MÁXIMO DE DUPLO GREEN <span style="display:inline-block;padding:2px 6px;border-radius:6px;background:#00b778;color:#07120e;font-size:9px;margin-left:6px;">PAGAMENTO ANTECIPADO</span></div>
-        <div class="duplo-sub">Se duas apostas/coberturas baterem simultaneamente, este é o potencial estimado considerando somente essas duas seleções.</div>
+        <div class="duplo-sub" id="duploSub">Se duas apostas/coberturas baterem simultaneamente, este é o potencial estimado da operação antes do fechamento completo do jogo.</div>
+        <div id="duploWarn" style="display:none; font-size:11px; color:#ffb90c; margin-top:6px; font-weight:800;">⚠ Com 3+ resultados do mesmo mercado (mutuamente exclusivos), esse valor soma pernas que não podem bater ao mesmo tempo — use só como referência teórica, não como cenário real.</div>
       </div>
       <div class="duplo-pill">
         <div class="lbl2">POTENCIAL ESTIMADO</div>
-        <div id="duploValue" class="val">R$ 0,00 <span id="duploPair" class="pair"></span><span id="duploRoi" style="font-size:10px;color:#54d9aa;margin-left:5px;">+0,0%</span></div>
+        <div id="duploValue" class="val">R$ 0,00 <span id="duploRoi" style="font-size:10px;color:#54d9aa;margin-left:5px;">+0,0%</span></div>
       </div>
     </div>
 
@@ -261,134 +269,54 @@ function solveOperation(){
   if(mdl.scenarios.length!==bets.length){
     return {error:"Use um resultado diferente em cada seleção para equalizar todos os cenários."};
   }
-
   const A=[],B=[];
   for(const s of mdl.scenarios){
     const row=[];
     for(let i=1;i<bets.length;i++) row.push(profitCoeff(bets[i],s,mdl));
-    row.push(-1);
-    A.push(row);
+    row.push(-1); A.push(row);
     B.push(-(baseStake*profitCoeff(bets[0],s,mdl)));
   }
-
   const x=solveLinear(A,B);
   if(!x) return {error:"Não foi possível resolver esta combinação."};
-
-  const ideal=[baseStake,...x.slice(0,bets.length-1)];
-  if(ideal.some(v=>!Number.isFinite(v)||v<-1e-8)){
+  const stakes=[baseStake,...x.slice(0,bets.length-1)];
+  if(stakes.some(v=>!Number.isFinite(v)||v<-1e-8)){
     return {error:"Esta combinação não produz stakes positivas."};
   }
-
-  const clean=ideal.map((v,i)=>i===0?round2(v):Math.max(0,round2(roundStake(v))));
-
+  const clean=stakes.map((v,i)=>i===0?round2(v):Math.max(0,round2(roundStake(v))));
   const outcomes=mdl.scenarios.map(s=>{
     let profit=0,gross=0;
     bets.forEach((b,i)=>{
-      const st=clean[i];
-      const com=Math.max(0,Math.min(100,num(b.commission)))/100;
-
+      const st=clean[i], com=Math.max(0,Math.min(100,num(b.commission)))/100;
       if(mdl.mode==="same-selection"){
         if(b.type==="back"){
-          if(b.freebet){
-            // Freebet @4 com R$100 gera R$300 de ganho, não R$400.
-            if(s==="__WIN__"){
-              const winnings=st*(b.odd-1);
-              profit+=winnings;
-              gross+=winnings;
-            }
-          }else if(s==="__WIN__"){
-            profit+=st*(b.odd-1);
-            gross+=st*b.odd;
-          }else{
-            profit-=st;
-          }
+          if(b.freebet){if(s==="__WIN__"){profit+=st*(b.odd-1);gross+=st*(b.odd-1);}}
+          else if(s==="__WIN__"){profit+=st*(b.odd-1);gross+=st*b.odd;}
+          else profit-=st;
         }else{
-          const liability=st*(b.odd-1);
-          if(s==="__WIN__"){
-            profit-=liability;
-          }else{
-            profit+=st*(1-com);
-            gross+=st;
-          }
+          const liab=st*(b.odd-1);
+          if(s==="__WIN__") profit-=liab; else {profit+=st*(1-com);gross+=st;}
         }
       }else{
         const same=b.resultKey===s;
         if(b.type==="back"){
-          if(b.freebet){
-            if(same){
-              const winnings=st*(b.odd-1);
-              profit+=winnings;
-              gross+=winnings;
-            }
-          }else if(same){
-            profit+=st*(b.odd-1);
-            gross+=st*b.odd;
-          }else{
-            profit-=st;
-          }
+          if(b.freebet){if(same){profit+=st*(b.odd-1);gross+=st*(b.odd-1);}}
+          else if(same){profit+=st*(b.odd-1);gross+=st*b.odd;}
+          else profit-=st;
         }else{
-          const liability=st*(b.odd-1);
-          if(same){
-            profit-=liability;
-          }else{
-            profit+=st*(1-com);
-            gross+=st;
-          }
+          const liab=st*(b.odd-1);
+          if(same) profit-=liab; else {profit+=st*(1-com);gross+=st;}
         }
       }
     });
     return {scenario:s,profit,gross};
   });
-
   const minProfit=Math.min(...outcomes.map(o=>o.profit));
   const diff=Math.max(...outcomes.map(o=>o.profit))-minProfit;
-
-  // Freebets are not cash investment.
-  const realInvestment=bets.reduce((sum,b,i)=>{
-    const st=clean[i];
-    if(b.type==="lay") return sum+st*(b.odd-1);
-    if(b.freebet) return sum;
-    return sum+st;
-  },0);
-
-  // Duplo Green = exactly TWO selections green simultaneously.
-  // Choose the pair with the highest combined net contribution.
-  const greenAmounts=bets.map((b,i)=>{
-    const st=clean[i];
-    if(b.type==="back"){
-      // Both normal Back and Freebet contribute only the net winnings.
-      return st*(b.odd-1);
-    }
-    // Lay green = selection loses; stake won after commission.
-    const com=Math.max(0,Math.min(100,num(b.commission)))/100;
-    return st*(1-com);
-  });
-
-  let duplo=0;
-  let duploPair=[];
-  for(let i=0;i<bets.length;i++){
-    for(let j=i+1;j<bets.length;j++){
-      const candidate=greenAmounts[i]+greenAmounts[j]-realInvestment;
-      if(candidate>duplo){
-        duplo=candidate;
-        duploPair=[i,j];
-      }
-    }
-  }
-
-  return {
-    model:mdl,
-    stakes:clean,
-    outcomes,
-    minProfit,
-    diff,
-    realInvestment,
-    duplo:Math.max(0,duplo),
-    duploPair,
-    roi:realInvestment?minProfit/realInvestment*100:0
-  };
+  const realInvestment=bets.reduce((sum,b,i)=>sum+(b.type==="lay"?clean[i]*(b.odd-1):(b.freebet?0:clean[i])),0);
+  const backPayouts=bets.map((b,i)=>b.type==="back"?(b.freebet?clean[i]*(b.odd-1):clean[i]*b.odd):0);
+  const duplo=Math.max(0,backPayouts.reduce((a,b)=>a+b,0)-realInvestment);
+  return {model:mdl,stakes:clean,outcomes,minProfit,diff,realInvestment,duplo,roi:realInvestment?minProfit/realInvestment*100:0};
 }
-
 function renderEntries(){
   const root=document.getElementById("entries");
   root.innerHTML=bets.map((b,i)=>`
@@ -541,12 +469,12 @@ function calculate(){
     document.getElementById("minProfit").className="mv";
     document.getElementById("roi").textContent="0,00%";
     document.getElementById("roi").className="mv";
-    document.getElementById("duploValue").textContent="R$ 0,00";
-    document.getElementById("duploRoi").textContent="+0,0%";
-    document.getElementById("duploPair").textContent="";
+    document.getElementById("duploValue").innerHTML="R$ 0,00";
+    document.getElementById("duploWarn").style.display="none";
     document.getElementById("status").textContent=solution.error;
     document.getElementById("status").style.color="var(--muted)";
     updateEntryOutputs();
+    markInvalidOdds();
     return;
   }
 
@@ -554,7 +482,12 @@ function calculate(){
 
   body.innerHTML=solution.outcomes.map(o=>{
     const pos=o.profit>=0;
-    const idx=bets.findIndex(b=>b.resultKey===o.scenario);
+    let idx;
+    if(solution.model.mode==="same-selection"){
+      idx = o.scenario==="__WIN__" ? bets.findIndex(b=>b.type==="back") : bets.findIndex(b=>b.type==="lay");
+    } else {
+      idx = bets.findIndex(b=>b.resultKey===o.scenario);
+    }
     const used=idx>=0?solution.stakes[idx]:solution.stakes[0];
     return `<tr>
       <td>${escapeHtml(scenarioLabel(o.scenario,solution))}</td>
@@ -570,11 +503,27 @@ function calculate(){
   document.getElementById("minProfit").className="mv "+(solution.minProfit>=0?"pos":"neg");
   document.getElementById("roi").textContent=(solution.roi>=0?"+":"−")+Math.abs(solution.roi).toFixed(2)+"%";
   document.getElementById("roi").className="mv "+(solution.roi>=0?"pos":"neg");
-  document.getElementById("duploValue").textContent=money(solution.duplo);
-  document.getElementById("duploRoi").textContent=solution.realInvestment?("+"+(solution.duplo/solution.realInvestment*100).toFixed(1)+"%"):"+0,0%";
-  const pairNames=(solution.duploPair||[]).map(i=>bets[i]?.name).filter(Boolean);
-  document.getElementById("duploPair").textContent=pairNames.length===2?pairNames.join(" + "):"";
+  const hasLay = bets.some(b=>b.type==="lay");
+  if(hasLay){
+    document.getElementById("duploValue").innerHTML = "—";
+    document.getElementById("duploWarn").textContent = "⚠ Não se aplica: essa operação tem perna(s) Lay (cobertura), que por definição nunca vencem ao mesmo tempo que uma Back. \"Duplo Green\" só existe com 2+ apostas Back (nunca com Lay envolvida).";
+    document.getElementById("duploWarn").style.display = "block";
+  } else {
+    document.getElementById("duploValue").innerHTML = money(solution.duplo) + ` <span id="duploRoi" style="font-size:10px;color:#54d9aa;margin-left:5px;">${solution.realInvestment?("+"+(solution.duplo/solution.realInvestment*100).toFixed(1)+"%"):"+0,0%"}</span>`;
+    document.getElementById("duploWarn").textContent = "⚠ Com 3+ resultados do mesmo mercado (mutuamente exclusivos), esse valor soma apostas que não podem bater ao mesmo tempo — use só como referência teórica, não como cenário real.";
+    document.getElementById("duploWarn").style.display = (bets.length>2) ? "block" : "none";
+  }
   document.getElementById("status").textContent="";
+  markInvalidOdds();
+}
+function markInvalidOdds(){
+  document.querySelectorAll(".entry").forEach(card=>{
+    const id=String(card.dataset.id);
+    const bet=bets.find(b=>String(b.id)===id);
+    const oddInput=card.querySelector(".odd");
+    if(!bet||!oddInput) return;
+    oddInput.classList.toggle("invalid", bet.odd>0 && bet.odd<=1);
+  });
 }
 function addBet(){
   const id=Date.now()+Math.random();
@@ -589,6 +538,7 @@ document.getElementById("resetBtn").addEventListener("click",()=>{
     {id:2,name:"",odd:0,type:"back",commission:0,freebet:false}
   ];
   document.getElementById("operationName").value="";
+  document.getElementById("operationGeraFreebet").checked=false;
   document.querySelector('input[name="rounding"][value="none"]').checked=true;
   renderEntries();calculate();
 });
@@ -601,9 +551,25 @@ document.getElementById("duploBtn").addEventListener("click",()=>{
   document.getElementById("duploPanel").scrollIntoView({behavior:"smooth",block:"nearest"});
 });
 document.getElementById("shareBtn").addEventListener("click",async()=>{
-  const payload={nome:document.getElementById("operationName").value,bets};
-  try{await navigator.clipboard.writeText(JSON.stringify(payload));document.getElementById("status").textContent="Resumo copiado para a área de transferência.";}
-  catch(e){document.getElementById("status").textContent="Não foi possível copiar automaticamente.";}
+  const status=document.getElementById("status");
+  if(!solution||solution.error){status.textContent=solution?.error||"Corrija os dados antes de compartilhar.";status.style.color="var(--danger)";return;}
+  const name=(document.getElementById("operationName").value||"").trim()||"Operação";
+  const linhas=bets.map((b,i)=>{
+    const casa=b.name||("Seleção "+(i+1));
+    const tipo=b.type==="lay"?"Lay":"Back";
+    const fb=b.freebet?" (freebet)":"";
+    return `${casa}: R$ ${solution.stakes[i].toFixed(2).replace(".",",")} @ ${Number(b.odd).toFixed(2)} [${tipo}]${fb}`;
+  });
+  const texto=[
+    `${name}`,
+    ...linhas,
+    ``,
+    `Investimento real: ${money(solution.realInvestment)}`,
+    `Lucro mínimo garantido: ${money(solution.minProfit)}`,
+    `ROI: ${solution.roi.toFixed(2).replace(".",",")}%`
+  ].join("\n");
+  try{await navigator.clipboard.writeText(texto);status.textContent="Resumo copiado para a área de transferência.";status.style.color="var(--green)";}
+  catch(e){status.textContent="Não foi possível copiar automaticamente.";status.style.color="var(--danger)";}
 });
 document.getElementById("sendBtn").addEventListener("click",()=>{
   const status=document.getElementById("status");
@@ -616,7 +582,7 @@ document.getElementById("sendBtn").addEventListener("click",()=>{
     detalhe:{
       hora_operacao:now.toTimeString().slice(0,5),
       pernas:rest.map((b,j)=>({perna_num:j+1,sub:null,evento:name,selecao_multipla:b.name,plataforma:null,rotulo:b.name,odd:round2(b.odd),acao:b.type,stake:round2(solution.stakes[j+1]),comissao:round2(b.commission||0),status_final:"pendente",usou_freebet:!!b.freebet})),
-      multipla:{odd:round2(first.odd),status_final:"pendente",freebet:!!first.freebet,gera_freebet:false,calculadora:"equalizador_dinamico",nome_operacao:name,resultado_principal:first.name,acao_principal:first.type,stake_principal:round2(solution.stakes[0]),comissao_principal:round2(first.commission||0),arredondamento:getRoundingStep()||"none",valor_base:round2(solution.stakes[0]),resultado_equilibrado:round2(solution.minProfit),diferenca_cenarios:round2(solution.diff),cenarios:solution.outcomes.map(o=>({cenario:scenarioLabel(o.scenario,solution),lucro:round2(o.profit)}))}
+      multipla:{odd:round2(first.odd),status_final:"pendente",freebet:!!first.freebet,gera_freebet:document.getElementById("operationGeraFreebet").checked,calculadora:"equalizador_dinamico",nome_operacao:name,resultado_principal:first.name,acao_principal:first.type,stake_principal:round2(solution.stakes[0]),comissao_principal:round2(first.commission||0),arredondamento:getRoundingStep()||"none",valor_base:round2(solution.stakes[0]),resultado_equilibrado:round2(solution.minProfit),diferenca_cenarios:round2(solution.diff),cenarios:solution.outcomes.map(o=>({cenario:scenarioLabel(o.scenario,solution),lucro:round2(o.profit)}))}
     }
   };
   localStorage.setItem("duploGreenCalculatorImport",JSON.stringify(imported));
