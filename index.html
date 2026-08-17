@@ -442,12 +442,12 @@
     Bankrolls
   </div>
   <div class="side-group">Gestão</div>
-  <a class="side-item" href="calculadora-nova.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
+  <a class="side-item" href="calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
     Calculadora Múltipla
   </a>
-  <a class="side-item" href="calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
-    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M7 9h10"/><path d="M7 13h10"/><path d="M7 17h5"/><circle cx="17" cy="17" r="2"/></svg></span>
+  <a class="side-item" href="calculadora-equalizador.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
+    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M7 8h10M7 12h10M7 16h4M15 16h3"/></svg></span>
     Calculadora
   </a>
   <a class="side-item" href="protecao-dg.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
@@ -1380,18 +1380,14 @@
   }
 
 
-  // ---- Integração com a calculadora de equalização ----
-  // A calculadora salva temporariamente a operação em localStorage e abre
-  // o painel com ?calculatorImport=1. Aqui usamos o editor já existente
-  // do painel; o botão Salvar continua sendo o responsável pelo insert.
+  // Recebe a operação enviada pela Calculadora Equalizadora via localStorage.
   function consumeCalculatorImport(){
     const params = new URLSearchParams(location.search);
-    const shouldImport = params.get('calculatorImport') === '1';
-    if(!shouldImport) return false;
+    if(params.get('calculatorImport') !== '1') return false;
 
     const raw = localStorage.getItem('duploGreenCalculatorImport');
     if(!raw){
-      showToast('Nenhuma operação da calculadora foi encontrada.', 'warn');
+      if(typeof showToast === 'function') showToast('Nenhuma operação da calculadora foi encontrada.', 'warn');
       params.delete('calculatorImport');
       const cleanUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
       history.replaceState(null, '', cleanUrl);
@@ -1402,7 +1398,7 @@
       const imported = JSON.parse(raw);
 
       if(!imported || !imported.detalhe || !Array.isArray(imported.detalhe.pernas)){
-        throw new Error('Payload da calculadora inválido.');
+        throw new Error('Payload inválido da calculadora.');
       }
 
       const op = {
@@ -1416,8 +1412,8 @@
         detalhe: imported.detalhe
       };
 
-      // Abre o mesmo editor usado pelo botão "Adicionar aposta".
-      // Nenhum insert adicional é feito aqui.
+      // Usa o MESMO editor já existente no painel.
+      // O botão Salvar continua sendo o responsável pelo insert original.
       openEditModal(op);
 
       localStorage.removeItem('duploGreenCalculatorImport');
@@ -1429,7 +1425,7 @@
       return true;
     }catch(e){
       console.error('Erro ao importar operação da calculadora:', e);
-      showToast('Não foi possível abrir a operação enviada pela calculadora.', 'err');
+      if(typeof showToast === 'function') showToast('Não foi possível abrir a operação enviada pela calculadora.', 'err');
       return false;
     }
   }
