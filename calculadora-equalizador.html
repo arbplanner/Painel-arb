@@ -195,6 +195,7 @@ let bets=[
   {id:2,name:"Empate",odd:3.50,type:"back",commission:0,freebet:false}
 ];
 let solution=null;
+let baseStake=100;
 
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
@@ -231,7 +232,7 @@ function renderBets(){
         <div>
           <label>VALOR DA APOSTA</label>
           <input class="stake-input" type="number" min="0" step="0.01"
-                 value="${i===0 ? Number(document.getElementById("base")?.value || 100).toFixed(2) : Number(roundStake(solution && solution.stakes ? solution.stakes[i] : 0)).toFixed(2)}"
+                 value="${i===0 ? Number(baseStake).toFixed(2) : Number(roundStake(solution && solution.stakes ? solution.stakes[i] : 0)).toFixed(2)}"
                  ${i===0 ? "" : "readonly"}>
         </div>
 
@@ -283,8 +284,15 @@ function renderBets(){
     odd.addEventListener("input",e=>{bet.odd=num(e.target.value);calculate();});
 
     const stakeInput=card.querySelector(".stake-input");
-    if(stakeInput && Number(card.querySelector(".num").textContent)!==1){
-      // Calculated stake is readonly. Keep the visual value synced.
+    const isFirst=String(bets[0].id)===id;
+    if(isFirst && stakeInput){
+      stakeInput.addEventListener("input",e=>{
+        baseStake=Math.max(0,num(e.target.value));
+        const out=card.querySelector(".stake");
+        if(out) out.textContent=money(Number(baseStake.toFixed(2)));
+        calculate();
+      });
+    }else if(stakeInput){
       stakeInput.addEventListener("focus",e=>e.target.blur());
     }
 
@@ -390,7 +398,7 @@ function profitCoeff(bet,scenario,model){
 }
 
 function solveOperation(){
-  const base=Math.max(0,num(document.getElementById("base").value));
+  const base=Math.max(0,baseStake);
   if(base<=0) return {error:"Informe um valor base maior que zero."};
   if(bets.length<2) return {error:"A calculadora precisa de pelo menos 2 apostas."};
   if(bets.some(b=>b.odd<1.01)) return {error:"Informe uma odd válida (mínimo 1,01) em todos os campos."};
@@ -470,7 +478,7 @@ function solveOperation(){
 
 function calculate(){
   solution=solveOperation();
-  document.getElementById("baseOut").textContent=money(num(document.getElementById("base").value));
+  document.getElementById("baseOut").textContent=money(baseStake);
 
   const alert=document.getElementById("alert");
   alert.className="alert";
@@ -538,15 +546,13 @@ function addBet(){
   renderBets();calculate();
 }
 document.getElementById("add").addEventListener("click",addBet);
-document.getElementById("base").addEventListener("input",()=>{
-  const card=document.querySelector('.bet-card[data-id="'+bets[0].id+'"]');
-  if(card){
-    const v=num(document.getElementById("base").value);
-    const input=card.querySelector(".stake-input");
-    const output=card.querySelector(".stake");
-    if(input) input.value=v;
-    if(output) output.textContent=money(v);
-  }
+document.addEventListener("input",(e)=>{
+  const first=e.target && e.target.closest ? e.target.closest(".bet-card[data-id=\""+bets[0].id+"\"] .stake-input") : null;
+  if(!first) return;
+  baseStake=Math.max(0,num(first.value));
+  const card=first.closest(".bet-card");
+  const out=card?card.querySelector(".stake"):null;
+  if(out) out.textContent=money(Number(baseStake.toFixed(2)));
   calculate();
 });
 
@@ -563,7 +569,7 @@ document.getElementById("reset").addEventListener("click",()=>{
     {id:1,name:"Time A",odd:1.50,type:"back",commission:0,freebet:false},
     {id:2,name:"Empate",odd:3.50,type:"back",commission:0,freebet:false}
   ];
-  document.getElementById("base").value=100;
+  baseStake=100;
   document.querySelector('input[name="rounding"][value="none"]').checked=true;
   renderBets();calculate();
 });
