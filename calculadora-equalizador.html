@@ -255,7 +255,7 @@ function renderBets(){
         <div>
           <label>VALOR DA APOSTA</label>
           <input class="stake-input" type="number" min="0" step="0.01"
-                 value="${i===0 ? baseStake : roundStake(solution && solution.stakes ? solution.stakes[i] : 0)}"
+                 value="${i===0 ? Number(baseStake.toFixed(2)) : Number(roundStake(solution && solution.stakes ? solution.stakes[i] : 0).toFixed(2))}"
                  ${i===0 ? "" : "readonly"}>
         </div>
 
@@ -288,7 +288,7 @@ function renderBets(){
 
         <div class="output">
           <span class="label">${i===0?"VALOR BASE":"APOSTAR"}</span>
-          <span class="val stake">${i===0 ? money(baseStake) : money(roundStake(solution?.stakes?.[i]||0))}</span>
+          <span class="val stake">${i===0 ? money(Number(baseStake.toFixed(2))) : money(Number(roundStake(solution?.stakes?.[i]||0).toFixed(2)))}</span>
         </div>
 
         <button type="button" class="remove" ${bets.length<=2?"disabled":""}>×</button>
@@ -711,6 +711,9 @@ document.getElementById("send").addEventListener("click",()=>{
   // Same-origin handoff: the panel itself will open its working "Add operation"
   // modal and, when the user clicks its own Save button, it will perform the
   // Supabase insert using the exact existing workflow.
+  const firstBet=bets[0];
+  const remainingBets=bets.slice(1);
+
   const importedOperation={
     data_operacao:date,
     nome:operationName,
@@ -719,28 +722,36 @@ document.getElementById("send").addEventListener("click",()=>{
     status:"pendente",
     detalhe:{
       hora_operacao:time,
-      pernas:bets.map((b,i)=>({
-        perna_num:i+1,
+
+      // O primeiro campo da calculadora vira o ticket principal do painel.
+      // Assim, duas apostas viram exatamente: ticket principal + 1 perna.
+      pernas:remainingBets.map((b,j)=>({
+        perna_num:j+1,
         sub:null,
         evento:operationName,
-        selecao_multipla:b.name||("Resultado "+(i+1)),
+        selecao_multipla:b.name||("Resultado "+(j+2)),
         plataforma:null,
-        rotulo:b.name||("Resultado "+(i+1)),
+        rotulo:b.name||("Resultado "+(j+2)),
         odd:Number(b.odd.toFixed(2)),
         acao:b.type,
-        stake:Number(solution.stakes[i].toFixed(2)),
+        stake:Number(solution.stakes[j+1].toFixed(2)),
         comissao:Number((b.commission||0).toFixed(2)),
         status_final:"pendente",
         usou_freebet:!!b.freebet
       })),
+
       multipla:{
-        odd:null,
-        status_final:"Pendente",
-        freebet:bets.some(b=>b.freebet),
+        odd:Number(firstBet.odd.toFixed(2)),
+        status_final:"pendente",
+        freebet:!!firstBet.freebet,
         gera_freebet:false,
         freebet_usada_confirmada:false,
         calculadora:"equalizador_dinamico",
         nome_operacao:operationName,
+        resultado_principal:firstBet.name||"Resultado 1",
+        acao_principal:firstBet.type,
+        stake_principal:Number(solution.stakes[0].toFixed(2)),
+        comissao_principal:Number((firstBet.commission||0).toFixed(2)),
         arredondamento:arred||"none",
         valor_base:Number(solution.base.toFixed(2)),
         resultado_equilibrado:Number(solution.balanced.toFixed(2)),
