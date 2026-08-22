@@ -1920,6 +1920,7 @@
     // PSM 3 (layout estruturado) e PSM 6 (bloco uniforme), e depois o parser
     // especializado escolhe a leitura que gerar o conjunto mais consistente.
     let source=file;
+    let originalCanvas=null;
     try{
       const img=new Image();
       img.decoding='async';
@@ -1931,6 +1932,12 @@
       });
 
       const scale=3;
+      originalCanvas=document.createElement('canvas');
+      originalCanvas.width=img.naturalWidth*scale;
+      originalCanvas.height=img.naturalHeight*scale;
+      const originalCtx=originalCanvas.getContext('2d');
+      originalCtx.drawImage(img,0,0,originalCanvas.width,originalCanvas.height);
+
       const canvas=document.createElement('canvas');
       canvas.width=img.naturalWidth*scale;
       canvas.height=img.naturalHeight*scale;
@@ -1976,14 +1983,15 @@
     // um crop pequeno costuma reconhecer investimento e odd total muito melhor.
     try{
       const headerCanvas=document.createElement('canvas');
-      const hw=Math.floor((source.width || 1200)*0.52);
-      const hh=Math.floor((source.height || 500)*0.32);
+      const headerSource=originalCanvas || source;
+      const hw=Math.floor((headerSource.width || 1200)*0.52);
+      const hh=Math.floor((headerSource.height || 500)*0.32);
       headerCanvas.width=hw;
       headerCanvas.height=hh;
       const hctx=headerCanvas.getContext('2d');
-      hctx.drawImage(source,0,0,hw,hh,0,0,hw,hh);
+      hctx.drawImage(headerSource,0,0,hw,hh,0,0,hw,hh);
       const {data:hd}=await Tesseract.recognize(headerCanvas,'por',{
-        tessedit_pageseg_mode:'11'
+        tessedit_pageseg_mode:'6'
       });
       if(hd && hd.text) results.unshift(hd.text);
     }catch(_e){}
@@ -2423,26 +2431,38 @@
 
     const invPos=headerLines.search(/INVESTIMENTO\s*:/i);
     if(invPos>=0){
-      const invChunk=headerLines.slice(invPos, invPos+140);
-      const m=invChunk.match(/R\$\s*([\d.,]+)/i);
-      if(m) principalStake=num(m[1]);
+      const invChunk=headerLines.slice(invPos, invPos+180);
+      const candidates=[...invChunk.matchAll(/R\$\s*([\d.,]+)/ig)]
+        .map(m=>num(m[1])).filter(v=>v!=null);
+      if(candidates.length) principalStake=candidates[0];
     }
     if(principalStake==null){
       const m=headerLines.match(/R\$\s*([\d.,]+)/i);
       if(m) principalStake=num(m[1]);
     }
 
-    const oddPos=headerLines.search(/ODD\s+TOTAL\s*:/i);
-    if(oddPos>=0){
-      const oddChunk=headerLines.slice(oddPos, oddPos+180);
-      // No OCR, "R$ 30,00" aparece entre ODD TOTAL e o número da odd.
-      // Portanto procuramos o último número decimal antes de "Freebet".
-      const m=oddChunk.match(/TIPO[\s\S]*?R\$\s*[\d.,]+[\s\S]*?([\d]{1,3}(?:[.,]\d{1,3})?)(?=\s*(?:Freebet|$))/i);
-      if(m) principalOdd=normPrincipalOdd(m[1]);
-      else{
-        const nums=[...oddChunk.matchAll(/([\d]{1,3}(?:[.,]\d{1,3})?)/g)].map(x=>normPrincipalOdd(x[1])).filter(v=>v!=null);
-        if(nums.length) principalOdd=nums[nums.length-1];
+    const oddCandidates=[];
+    const oddGlobal=/ODD\s+TOTAL[\s\S]{0,180}/ig;
+    let om;
+    while((om=oddGlobal.exec(txt))){
+      const chunk=om[0];
+      // Prioridade máxima: OCR do valor visível costuma trazer @14.83.
+      for(const m of chunk.matchAll(/(?:@|\b[qgweuoi]\s*)\s*(\d{1,3}[.,]\d{1,3})/ig)){
+        const v=normPrincipalOdd(m[1]);
+        if(v!=null) oddCandidates.push({v,score:100});
       }
+      for(const m of chunk.matchAll(/(?:TIPO|R\$[^\n]*)[\s\S]{0,80}?([\d]{1,3}[.,]\d{1,3})(?=\s*(?:Freebet|$))/ig)){
+        const v=normPrincipalOdd(m[1]);
+        if(v!=null) oddCandidates.push({v,score:60});
+      }
+      for(const m of chunk.matchAll(/([\d]{1,3}[.,]\d{1,3})/g)){
+        const v=normPrincipalOdd(m[1]);
+        if(v!=null) oddCandidates.push({v,score:20});
+      }
+    }
+    if(oddCandidates.length){
+      oddCandidates.sort((a,b)=>b.score-a.score);
+      principalOdd=oddCandidates[0].v;
     }
 
     // Nome pode ser o título no topo, mas não usamos isso para preencher a casa.
@@ -2987,8 +3007,13 @@
           if(candidata.principal && candidata.principal.odd!=null) score+=20;
           if(score>bestScore){bestScore=score;especificas=candidata;}
         });
-        const layoutExato = blocosOcr.map(b=>parseLayoutEsportesDaSorte(b)).find(Boolean) || null;
-        const encontradas = layoutExato?.pernas?.length ? layoutExato.pernas : (especificas.length ? especificas : parseTextoColado(texto));
+        const layoutExato =
+          parseLayoutEsportesDaSorte(texto) ||
+          blocosOcr.map(b=>parseLayoutEsportesDaSorte(b)).find(Boolean) ||
+          null;
+        const encontradas = layoutExato?.pernas?.length
+          ? layoutExato.pernas
+          : (especificas.length ? especificas : parseTextoColado(texto));
 
         // O cabeçalho da múltipla é lido em um crop separado e, por isso,
         // pode não produzir "pernas". Mesmo assim precisamos aproveitar seus
@@ -3065,7 +3090,7 @@
           p.acao = e.acao === 'lay' ? 'lay' : 'back';
           workingPernas.push(p);
         });
-        statusEl.textContent = `${apostas.length} perna(s) reconhecida(s)${origem==='clipboard' ? ' da imagem colada' : ''}${principalOcr && principalOcr.investimento!=null && principalOcr.odd!=null ? ' — múltipla principal preenchida' : ''}. Confira casa, ação, odd e stake antes de salvar.`;
+        statusEl.textContent = `${apostas.length} perna(s) reconhecida(s)${origem==='clipboard' ? ' da imagem colada' : ''}${layoutExato ? ' — layout Esportes da Sorte reconhecido' : ''}${principalOcr && principalOcr.investimento!=null && principalOcr.odd!=null ? ' — múltipla principal preenchida' : ''}. Confira casa, ação, odd e stake antes de salvar.`;
         statusEl.style.color = 'var(--green)';
         render();
       }catch(e){
