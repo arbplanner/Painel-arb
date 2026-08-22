@@ -1916,19 +1916,21 @@
 
   // Tesseract.js (OCR gratuito, roda inteiro no navegador — sem chave, sem conta, sem custo) ------
   async function lerImagemComTesseract(file, onProgress){
-    // Pré-processamento para telas escuras: amplia 2x, transforma em escala de cinza
-    // e aplica limiar simples. Isso melhora bastante números/odds coloridos.
+    // Para esta calculadora, um único PSM é insuficiente. Fazemos duas leituras:
+    // PSM 3 (layout estruturado) e PSM 6 (bloco uniforme), e depois o parser
+    // especializado escolhe a leitura que gerar o conjunto mais consistente.
     let source=file;
     try{
-      const img = new Image();
+      const img=new Image();
       img.decoding='async';
-      const url = URL.createObjectURL(file);
+      const url=URL.createObjectURL(file);
       await new Promise((resolve,reject)=>{
-        img.onload=()=>resolve();
+        img.onload=resolve;
         img.onerror=reject;
         img.src=url;
       });
-      const scale=2;
+
+      const scale=3;
       const canvas=document.createElement('canvas');
       canvas.width=img.naturalWidth*scale;
       canvas.height=img.naturalHeight*scale;
@@ -1936,12 +1938,13 @@
       ctx.drawImage(img,0,0,canvas.width,canvas.height);
       URL.revokeObjectURL(url);
 
+      // Escala de cinza + contraste leve, sem apagar os caracteres finos.
       const data=ctx.getImageData(0,0,canvas.width,canvas.height);
       for(let i=0;i<data.data.length;i+=4){
         const r=data.data[i], g=data.data[i+1], b=data.data[i+2];
         const lum=0.299*r+0.587*g+0.114*b;
-        const v=lum>92 ? 255 : 0;
-        data.data[i]=data.data[i+1]=data.data[i+2]=v;
+        const boosted=Math.max(0,Math.min(255,(lum-45)*1.45));
+        data.data[i]=data.data[i+1]=data.data[i+2]=boosted;
       }
       ctx.putImageData(data,0,0);
       source=canvas;
@@ -1949,13 +1952,43 @@
       source=file;
     }
 
-    const { data } = await Tesseract.recognize(source, 'por', {
-      logger:m=>{
-        if(onProgress && m.status==='recognizing text') onProgress(Math.round((m.progress||0)*100));
-      },
-      tessedit_pageseg_mode:'11'
-    });
-    return data.text;
+    const configs=[
+      {psm:'3', weight:1},
+      {psm:'6', weight:0.85},
+      {psm:'11', weight:0.65}
+    ];
+    const results=[];
+    for(let i=0;i<configs.length;i++){
+      const cfg=configs[i];
+      const {data}=await Tesseract.recognize(source,'por',{
+        logger:m=>{
+          if(onProgress && m.status==='recognizing text'){
+            const local=(m.progress||0);
+            const overall=((i+local)/configs.length)*100;
+            onProgress(Math.round(overall));
+          }
+        },
+        tessedit_pageseg_mode:cfg.psm
+      });
+      results.push(data.text||'');
+    }
+    // Leitura específica do cartão "APOSTA PRINCIPAL". Em telas deste layout,
+    // um crop pequeno costuma reconhecer investimento e odd total muito melhor.
+    try{
+      const headerCanvas=document.createElement('canvas');
+      const hw=Math.floor((source.width || 1200)*0.52);
+      const hh=Math.floor((source.height || 500)*0.32);
+      headerCanvas.width=hw;
+      headerCanvas.height=hh;
+      const hctx=headerCanvas.getContext('2d');
+      hctx.drawImage(source,0,0,hw,hh,0,0,hw,hh);
+      const {data:hd}=await Tesseract.recognize(headerCanvas,'por',{
+        tessedit_pageseg_mode:'11'
+      });
+      if(hd && hd.text) results.unshift(hd.text);
+    }catch(_e){}
+
+    return results.join('\n\n--- OCR PASS ---\n\n');
   }
 
   function novaPernaEmBranco(nextNum){
@@ -1970,189 +2003,312 @@
   // É um "melhor esforço" — funciona para o formato mostrado, mas sempre deixa pra você conferir/ajustar antes de salvar.
   // Parser específico para prints de "Múltiplas com Cobertura / Extração".
   // Entende blocos como: Etapa 1, Apostar em, Fazer LAY (Contra), [Casa], Stake e odd.
+  // Parser dedicado para prints da calculadora "Múltiplas com Cobertura / Extração".
+  // Prioriza os campos críticos apontados pelo layout: investimento/odd da múltipla e,
+  // em cada etapa, seleção + casa + stake + odd. Ignora deliberadamente "Risco/Resp"
+  // porque esse valor NÃO é o stake da perna.
   function parseExtracaoMultipla(texto){
-    const raw = (texto||'').replace(/\r/g,'');
-    if(!/(apostar\s+em|fazer\s+lay)/i.test(raw)) return [];
+    const raw=String(texto||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
+    if(!/(APOSTA\s+PRINCIPAL|INVEST\w*|ODD\s+TOTAL|APOSTAR\s+EM|FAZER\s+LAY|Risco\s*\(Resp\))/i.test(raw)) return [];
 
-    const normal = raw
+    const clean=raw
+      .replace(/--- OCR PASS ---/gi,'\n')
+      .replace(/Apostarem/gi,'Apostar em')
+      .replace(/Apostar\s*em/gi,'Apostar em')
+      .replace(/Fer\s+LAY/gi,'Fazer LAY')
+      .replace(/Faz(er|er)\s*LA\b/gi,'Fazer LAY')
+      .replace(/fazer\s+la(?:y)?/gi,'Fazer LAY')
+
       .replace(/[|]/g,' ')
-      .replace(/\u00a0/g,' ')
-      .replace(/R\s*[S\$5]\s*/gi,'R$ ')
-      .replace(/\bRS\b/gi,'R$')
-      .replace(/apostarem/gi,'Apostar em')
-      .replace(/apostar\s+em\s+em/gi,'Apostar em')
-      .replace(/faner\s+lay/gi,'Fazer LAY')
-      .replace(/fazer\s+lay\s*\(\s*contr[ae]?\s*\)/gi,'Fazer LAY (Contra)')
-      .replace(/\bspostar\b/gi,'Apostar')
-      .replace(/\s{2,}/g,' ');
+      // OCR frequentemente lê "R$" como n$, ns, as, 5$, etc.
+      .replace(/\b[NnAa]\s*\$\s*/g,'R$ ')
+      .replace(/\b[Nn][Ss]\s*/g,'R$ ')
+      .replace(/\b[Aa][Ss]\s*(?=[\d])/g,'R$ ')
+      .replace(/\bR\s*[S\$5]\s*/gi,'R$ ')
+      .replace(/[ \t]+/g,' ')
+      .replace(/[ \t]*\n[ \t]*/g,'\n');
 
-    const toNum = s => {
-      let v = String(s||'').replace(/[^\d.,]/g,'');
+    const toNum=s=>{
+      let v=String(s??'').replace(/[^\d.,]/g,'');
       if(!v) return null;
-      if(v.includes(',') && v.includes('.')) v = v.replace(/\./g,'').replace(',','.');
-      else if(v.includes(',')) v = v.replace(',','.');
-      const n = parseFloat(v);
-      return Number.isFinite(n) ? n : null;
+      if(v.includes(',')&&v.includes('.')) v=v.replace(/\./g,'').replace(',','.');
+      else if(v.includes(',')) v=v.replace(',','.');
+      const n=parseFloat(v);
+      return Number.isFinite(n)?n:null;
     };
 
-    const normCasa = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-      .toUpperCase().replace(/[^A-Z0-9]+/g,'');
-    const aliases = {
-      'BETT&':'BET7K','BETT':'BET7K','BET7K':'BET7K','BET7KCOM':'BET7K',
-      'BETERA':'BETBRA','BET8RA':'BETBRA','BETBRA':'BETBRA',
-      'SETANL':'BETANO','BETANCL':'BETANO','BETAN0':'BETANO','BETAN':'BETANO',
-      'BEANCL':'BETANO','BETANCO':'BETANO'
+    const normalizeOdd = n => {
+      if(n==null || !Number.isFinite(n)) return null;
+      if(n>=10 && n<100){
+        const candidate=parseFloat(n.toFixed(2).slice(1));
+        if(candidate>=1.01 && candidate<=9.99) return candidate;
+      }
+      return n;
     };
-    const knownCasas = (typeof allCasas==='function' ? allCasas() : []).concat(['BET7K','BETBRA']);
-    const casaCanonical = knownCasas.reduce((m,c)=>{ m[normCasa(c)] = c; return m; }, {});
+
+    const normCasa=s=>String(s||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toUpperCase().replace(/[^A-Z0-9&]+/g,'');
+
+    const aliases={
+      BETANO:'BETANO', BETAN0:'BETANO', BETANCO:'BETANO', BEANO:'BETANO',
+      ETANO:'BETANO', ETAN0:'BETANO', ETANOL:'BETANO', BETANI:'BETANO', BETNI:'BETANO', BETN1:'BETANO', BETNL:'BETANO',
+      BETERA:'BETBRA', BET8RA:'BETBRA', BETBRA:'BETBRA',
+      BET7K:'BET7K', BETTK:'BET7K', BETT:'BET7K', BET:'BET7K',
+      BETA:'BET7K', BETIK:'BET7K', BETN:'BETANO',
+      KINGPANDA:'KINGPANDA', KINGPAN0A:'KINGPANDA', KINGPAND:'KINGPANDA',
+      ESPORTESDASORTE:'ESPORTES DA SORTE', ESPORTESDASORTECOM:'ESPORTES DA SORTE'
+    };
+
+    const known=(typeof allCasas==='function'?allCasas():[]).concat(
+      ['BETANO','BETBRA','BET7K','KINGPANDA','ESPORTES DA SORTE']
+    );
+    const canonical={};
+    known.forEach(c=>{ const n=normCasa(c); if(n) canonical[n]=c; });
+
+    const lev=(a,b)=>{
+      const dp=Array(b.length+1).fill(0).map((_,i)=>i);
+      for(let i=1;i<=a.length;i++){
+        let prev=dp[0]; dp[0]=i;
+        for(let j=1;j<=b.length;j++){
+          const cur=dp[j];
+          dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+          prev=cur;
+        }
+      }
+      return dp[b.length];
+    };
+
     function canonicalCasa(rawCasa){
-      const n = normCasa(rawCasa);
+      const n=normCasa(rawCasa);
       if(!n) return null;
       if(aliases[n]) return aliases[n];
-      if(casaCanonical[n]) return casaCanonical[n];
+      if(canonical[n]) return canonical[n];
 
-      // Similaridade simples por distância de edição para erros típicos de OCR.
-      let best=null, bestScore=999;
-      const levenshtein=(a,b)=>{
-        const dp=Array(b.length+1).fill(0).map((_,i)=>i);
-        for(let i=1;i<=a.length;i++){
-          let prev=dp[0]; dp[0]=i;
-          for(let j=1;j<=b.length;j++){
-            const cur=dp[j];
-            dp[j]=Math.min(dp[j]+1, dp[j-1]+1, prev+(a[i-1]===b[j-1]?0:1));
-            prev=cur;
-          }
-        }
-        return dp[b.length];
-      };
-      Object.keys(casaCanonical).forEach(k=>{
-        const d=levenshtein(n,k);
-        const normDist=d/Math.max(n.length,k.length);
-        if(normDist<0.36 && d<Math.max(3,Math.ceil(k.length*0.34)) && d<bestScore){
-          bestScore=d; best=casaCanonical[k];
-        }
+      let best=null,bestD=999;
+      Object.keys(canonical).forEach(k=>{
+        const d=lev(n,k);
+        const maxD=Math.max(1,Math.floor(Math.max(n.length,k.length)*0.23));
+        if(d<=maxD&&d<bestD){bestD=d;best=canonical[k];}
       });
-      return best || rawCasa.trim();
+      return best||String(rawCasa||'').trim();
     }
 
-    function extractCasaAndLabel(prefix){
-      let p=(prefix||'').replace(/\s+/g,' ').trim().replace(/[:\-]+\s*$/,'');
-      if(!p) return {casa:null,label:''};
+    function nearestStage(pos){
+      const before=clean.slice(0,pos);
+      const ms=[...before.matchAll(/Etapa\s*([0-9]{1,2})/ig)];
+      if(ms.length) return Number(ms[ms.length-1][1])||1;
+      // OCR às vezes transforma "Etapa 2/3" em "Espe2/3".
+      const ms2=[...before.matchAll(/(?:Etapa|Espe|Esp[eé]?)\s*([1234])\b/ig)];
+      if(ms2.length) return Number(ms2[ms2.length-1][1])||1;
+      return null;
+    }
 
-      const br=[...p.matchAll(/\[([^\]\n]{2,40})\]/g)];
-      if(br.length){
-        const last=br[br.length-1];
-        const rawCasa=last[1].trim();
-        const casa=canonicalCasa(rawCasa);
-        let label=(p.slice(0,last.index)+' '+p.slice(last.index+last[0].length))
-          .replace(/\(\s*$/,'').replace(/\s{2,}/g,' ').trim();
-        label=label.replace(/[,:;\-]\s*$/,'').trim();
-        return {casa,label};
+    function eventBefore(pos){
+      const before=clean.slice(0,pos);
+      const ms=[...before.matchAll(/([A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,6}\s+x\s+[A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,6})/ig)];
+      if(!ms.length) return '';
+      return ms[ms.length-1][1].replace(/\s+/g,' ').trim().replace(/[.:]+$/,'');
+    }
+
+    function casaFromPrefix(prefix){
+      const p=String(prefix||'').replace(/\s+/g,' ').trim();
+      const bracket=p.match(/\[([^\]\n]{2,40})/);
+      if(bracket){
+        const c=canonicalCasa(bracket[1]);
+        if(c) return {casa:c,label:p.slice(0,bracket.index).replace(/[:\-]\s*$/,'').trim()};
       }
 
-      // Sem colchetes: a casa costuma ser o último token antes dos ":".
-      const m=p.match(/^(.*?)(?:\s+)([A-Za-zÀ-ÿ0-9&.]{3,15})$/);
-      if(m){
-        const casaTry=canonicalCasa(m[2]);
-        if(casaTry){
-          return {casa:casaTry,label:m[1].replace(/[,:;\-]\s*$/,'').trim()};
-        }
+      // Procura qualquer casa conhecida no fim do prefixo (com ou sem colchetes).
+      const candidates=Object.keys(canonical).sort((a,b)=>b.length-a.length);
+      for(const key of candidates){
+        const label=canonical[key];
+        const escaped=label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+        const m=p.match(new RegExp('(.+?)\\s*(?:\\[\\s*)?'+escaped+'\\s*(?:\\])?\\s*:?[\\s]*$','i'));
+        if(m) return {casa:label,label:m[1].trim()};
       }
-      // Últimas duas palavras para casas com espaço.
-      const m2=p.match(/^(.*?)(?:\s+)([A-Za-zÀ-ÿ0-9&.]{2,15}\s+[A-Za-zÀ-ÿ0-9&.]{2,15})$/);
-      if(m2){
-        const casaTry=canonicalCasa(m2[2]);
-        if(casaTry){
-          return {casa:casaTry,label:m2[1].replace(/[,:;\-]\s*$/,'').trim()};
+
+      // Aliases específicos que aparecem muito no OCR deste layout.
+      const aliasKeys=Object.keys(aliases).sort((a,b)=>b.length-a.length);
+      for(const key of aliasKeys){
+        const label=aliases[key];
+        const m=p.match(new RegExp('(.+?)\\s*(?:\\[\\s*)?'+key+'\\s*(?:\\])?\\s*:?[\\s]*$','i'));
+        if(m) return {casa:label,label:m[1].trim()};
+      }
+
+      // Último token: só aceita como casa se a similaridade for boa.
+      const parts=p.split(/\s+/);
+      if(parts.length>=2){
+        const last=parts.slice(-1)[0].replace(/[\[\]:]/g,'');
+        const c=canonicalCasa(last);
+        if(c && normCasa(c)!==normCasa(last) || aliases[normCasa(last)]){
+          return {casa:c,label:parts.slice(0,-1).join(' ').trim()};
         }
       }
       return {casa:null,label:p};
     }
 
-    // Cada ação vira um bloco. O bloco seguinte começa na próxima ação.
-    const starts=[];
-    const reAct=/(apostar\s+em|fazer\s+lay\s*\(\s*contra\s*\))/ig;
-    let mm;
-    while((mm=reAct.exec(normal))) starts.push({index:mm.index, token:mm[0], isLay:/fazer\s+lay/i.test(mm[0])});
-
     const pernas=[];
-    let etapaAtual=0;
-    let eventoAtual='';
+    const dedupe=new Set();
 
-    // Evento entre duas ações costuma estar no cabeçalho da etapa.
-    const extractEvent = s => {
-      const m=[...String(s||'').matchAll(/([A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,6}\s+x\s+[A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,6})/ig)];
-      if(!m.length) return '';
-      return m[m.length-1][1]
-        .replace(/(?:R\$\s*[\d.,]+|[\d.,]{2,})\s*Etapa\s*\d+/ig,'Etapa')
-        .replace(/^\s*Etapa\s*\d+\s*/i,'')
-        .replace(/\s+/g,' ')
-        .trim();
-    };
+    // BACK: usa o primeiro par "valor (odd)" depois de "Apostar em".
+    const backStarts=[];
+    const reBackStart=/Apostar\s+em/ig;
+    let m;
+    while((m=reBackStart.exec(clean))) backStarts.push({pos:m.index});
+    backStarts.forEach((st,i)=>{
+      const end=i+1<backStarts.length?backStarts[i+1].pos:clean.length;
+      let block=clean.slice(st.pos,end);
+      const stage=0;
 
-    starts.forEach((st,idx)=>{
-      const nextIndex = idx+1<starts.length ? starts[idx+1].index : normal.length;
-      let block=normal.slice(st.index,nextIndex);
-      const between = idx>0
-        ? normal.slice(starts[idx-1].index, st.index)
-        : normal.slice(0, st.index);
-      const ev=extractEvent(between);
-      if(ev && ev!==eventoAtual){
-        eventoAtual=ev;
-        etapaAtual++;
+      // Limita o bloco ao próximo "Fazer LAY" ou ao próximo cabeçalho/risco.
+      const cut=block.search(/Fazer\s+LAY|Custo\s+Total|Risco\s*\(Resp\)|Etapa\s*[23]/i);
+      if(cut>=0) block=block.slice(0,cut);
+
+      const money=block.match(/R\$\s*([\d.,]+)\s*\(\s*([^\d]*)([\d.,]+)\s*\)/i);
+      if(!money) return;
+
+      const prefix=block.slice(block.search(/Apostar\s+em/i)+10,money.index);
+      const info=casaFromPrefix(prefix);
+      if(!info.casa){
+        const pm=prefix.match(/^(.*?)(?:\s+)(Beta|Betni|Betn|Etano|Etanol|Betera|Betbra|Bet7k)\s*:?[\s]*$/i);
+        if(pm){ info.casa=canonicalCasa(pm[2]); info.label=pm[1].trim(); }
       }
-      if(!etapaAtual) etapaAtual=1;
+      const stake=toNum(money[1]);
+      const odd=normalizeOdd(toNum(money[2] ? money[2]+money[3] : money[3]));
+      if(!info.label||stake==null||odd==null||stake<=0||odd<1) return;
 
-      let stake=null, odd=null, descricao='', casa=null;
-
-      if(st.isLay){
-        const body=block.replace(/^(fazer\s+lay\s*\(\s*contra\s*\)\s*:?\s*)/i,'').trim();
-        const stakePos=body.search(/\b(?:apostar\s*)?\(?\s*stake\s*\)?\s*:/i);
-        const prefix = stakePos>=0 ? body.slice(0,stakePos) : body;
-        const info=extractCasaAndLabel(prefix);
-        casa=info.casa;
-        descricao=info.label || '';
-        const sm=block.match(/(?:\b(?:apostar\s*)?\(?\s*stake\s*\)?\s*:?\s*)R\$\s*([\d.,]+)/i);
-        const om=block.match(/R\$\s*[\d.,]+\s*\(\s*[^0-9]*([\d.,]+)\s*\)/i);
-        if(sm) stake=toNum(sm[1]);
-        if(om) odd=toNum(om[1]);
-      }else{
-        const body=block.replace(/^(apostar\s+em\s*:?\s*)/i,'').trim();
-        const moneyIndex=body.search(/R\$\s*[\d.,]+/i);
-        const prefix = moneyIndex>=0 ? body.slice(0,moneyIndex) : body;
-        const info=extractCasaAndLabel(prefix);
-        casa=info.casa;
-        descricao=info.label || '';
-        const sm=block.match(/R\$\s*([\d.,]+)\s*\(\s*[^0-9]*([\d.,]+)\s*\)/i);
-        if(sm){ stake=toNum(sm[1]); odd=toNum(sm[2]); }
-      }
-
-      if(casa && (stake!=null || odd!=null)){
-        pernas.push({
-          casa:String(casa).toUpperCase(),
-          descricao:descricao || `Etapa ${etapaAtual}`,
-          evento:eventoAtual || '',
-          stake, odd,
-          acao:st.isLay ? 'lay' : 'back',
-          etapa:etapaAtual
-        });
-      }
+      const key=['b',stage,info.casa,info.label,stake,odd].join('|');
+      if(dedupe.has(key)) return;
+      dedupe.add(key);
+      pernas.push({
+        casa:String(info.casa||'').toUpperCase(),
+        descricao:info.label.replace(/\s+/g,' ').trim(),
+        evento:eventBefore(st.pos),
+        stake,odd,acao:'back',etapa:stage,_pos:st.pos
+      });
     });
 
-    // Corrige o número da etapa para o padrão 1,1,2,3...
-    let lastEvent='', seq=0;
-    pernas.forEach((p,i)=>{
-      const ev=(p.evento||'').toLowerCase();
-      if(!ev || ev===lastEvent){ if(!seq) seq=1; p.etapa=seq; }
-      else { seq++; p.etapa=seq; lastEvent=ev; }
+    // LAY: pega Stake + Odd e, se disponível, o Risco para corrigir stake quando OCR erra.
+    const layStarts=[];
+    const reLayStart=/Fazer\s+LAY(?:\s*\(\s*Contr[ae]?\s*\))?/ig;
+    while((m=reLayStart.exec(clean))) layStarts.push({pos:m.index});
+    layStarts.forEach((st,i)=>{
+      const end=i+1<layStarts.length?layStarts[i+1].pos:clean.length;
+      let block=clean.slice(st.pos,end);
+      const stage=0;
+
+      const body=block.replace(/Fazer\s+LAY(?:\s*\(\s*Contr[ae]?\s*\))?\s*:?\s*/i,'');
+      const stakeMatch=body.match(/(?:Apostar\s*)?\(\s*Stake\s*\)\s*:\s*R\$\s*([\d.,]+)\s*\(\s*([^\d]*)([\d.,]+)\s*\)/i);
+      if(!stakeMatch) return;
+
+      const stakeOCR=toNum(stakeMatch[1]);
+      const odd=normalizeOdd(toNum((stakeMatch[2]||'')+stakeMatch[3]));
+      const prefix=body.slice(0,stakeMatch.index);
+      const info=casaFromPrefix(prefix);
+      if(!info.casa){
+        const pm=prefix.match(/^(.*?)(?:\s+)(Beta|Betni|Betn|Etano|Etanol|Betera|Betbra|Bet7k)\s*:?[\s]*$/i);
+        if(pm){ info.casa=canonicalCasa(pm[2]); info.label=pm[1].trim(); }
+      }
+      if(odd==null||odd<1||!info.label) return;
+
+      // Risco/Resp = liability. Quando ambos estão presentes, liability/(odd-1)
+      // é matematicamente mais confiável do que um stake mal lido pelo OCR.
+      const riskMatch=body.match(/Risco\s*\(\s*Resp\s*\)\s*:?\s*R\$\s*([\d.,]+)/i);
+      let stake=stakeOCR;
+      if(riskMatch&&odd>1){
+        const risk=toNum(riskMatch[1]);
+        if(risk!=null){
+          const derived=risk/(odd-1);
+          // Só substitui quando o valor derivado é muito mais coerente com o risco.
+          if(Number.isFinite(derived) && derived>0 && Math.abs(derived-stakeOCR)/Math.max(derived,stakeOCR)>0.08){
+            stake=Math.round(derived*100)/100;
+          }
+        }
+      }
+
+      const key=['l',stage,info.casa,info.label,stake,odd].join('|');
+      if(dedupe.has(key)) return;
+      dedupe.add(key);
+      pernas.push({
+        casa:String(info.casa||'').toUpperCase(),
+        descricao:info.label.replace(/\s+/g,' ').trim().replace(/^\(?\s*(?:Coma|Conta|Contra)\s*[:\-]?\s*/i,''),
+        evento:eventBefore(st.pos),
+        stake,odd,acao:'lay',etapa:stage,_pos:st.pos
+      });
     });
 
-    const unique=[], seen=new Set();
+    if(!pernas.length) return [];
+
+    // Reconstrói as etapas pelo evento e pela ordem real das ações.
+    // Isso evita depender da palavra "Etapa", que o OCR frequentemente destrói.
+    pernas.sort((a,b)=>(a._pos??0)-(b._pos??0));
+    let stageCounter=0, lastEvent='';
     pernas.forEach(p=>{
-      const k=[p.casa,p.descricao,p.stake,p.odd,p.acao,p.etapa].join('|');
-      if(!seen.has(k)){ seen.add(k); unique.push(p); }
+      const ev=(p.evento||'').toLowerCase().replace(/\s+/g,' ').trim();
+      if(!ev || ev!==lastEvent) stageCounter++;
+      p.etapa=stageCounter;
+      lastEvent=ev;
     });
-    return unique;
+
+    const totalMatch=clean.match(/Custo\s+Total\s*\(\s*Risco\s*\)\s*:\s*R\$\s*([\d.,]+)/i);
+    if(totalMatch){
+      const total=toNum(totalMatch[1]);
+      const backs=pernas.filter(p=>p.etapa===1 && p.acao==='back');
+      if(total!=null && backs.length===2){
+        const sum=backs[0].stake+backs[1].stake;
+        if(Math.abs(sum-total)<=1 && Math.abs(backs[0].stake-backs[1].stake)<=1.5){
+          const each=Math.round((total/2)*100)/100;
+          backs[0].stake=each; backs[1].stake=each;
+        }
+      }
+    }
+
+    pernas.sort((a,b)=>(a.etapa-b.etapa)||((a._pos??0)-(b._pos??0)));
+    const counts={};
+    pernas.forEach(p=>{
+      counts[p.etapa]=(counts[p.etapa]||0)+1;
+      p.sub=p.acao==='back' ? (counts[p.etapa]===1?'A':'B') : null;
+      delete p._pos;
+    });
+
+    // Cabeçalho da múltipla. Há fallbacks para erros comuns de OCR em "investimento".
+    let principalStake=null,principalOdd=null,principalCasa=null,principalNome=null;
+    const investMatch=
+      clean.match(/(?:INVESTIMENTO|INVESTMENTO|MVESTIMENTO|MVESTMENTO)\s*:?\s*R\$\s*([\d.,]+)/i) ||
+      clean.match(/(?:INVESTIMENTO|INVESTMENTO|MVESTIMENTO|MVESTMENTO)[\s\S]{0,100}?R\$\s*([\d.,]+)/i) ||
+      clean.match(/APOSTA\s+PRINCIPAL[\s\S]{0,160}?R\$\s*([\d.,]+)/i);
+    const oddMatch=
+      clean.match(/ODD\s+TOTAL[\s\S]{0,100}?TIPO[\s\S]{0,60}?([\d]{1,3}[.,][\d]{2})/i) ||
+      clean.match(/ODD\s+TOTAL[^\n]*\n(?:[^\n]*\n){0,2}\s*([\d]{1,3}[.,][\d]{2})/i) ||
+      clean.match(/APOSTA\s+PRINCIPAL[\s\S]{0,260}?\bODD\s+TOTAL\b[\s:@]*([\d]{1,3}[.,][\d]{2})/i);
+
+    if(investMatch) principalStake=toNum(investMatch[1]);
+    if(oddMatch) principalOdd=normalizeOdd(toNum(oddMatch[1]));
+
+    const principalHeader=clean.match(/APOSTA\s+PRINCIPAL\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9 &.\-]{2,40})/i);
+    if(principalHeader){
+      const rawCasa=principalHeader[1].trim().split(/\s{2,}|INVESTIMENTO|ODD\s+TOTAL|TIPO/i)[0].trim();
+      if(rawCasa) principalCasa=canonicalCasa(rawCasa);
+    }
+
+    if(principalStake==null){
+      const cutCandidates=[
+        clean.search(/Etapa\s*1\b/i),
+        clean.search(/Apostar\s+em/i),
+        clean.search(/Fazer\s+LAY/i)
+      ].filter(v=>v>=0);
+      const cut=cutCandidates.length?Math.min(...cutCandidates):Math.min(clean.length,800);
+      const top=clean.slice(0,cut);
+      const mm=[...top.matchAll(/R\$\s*([\d.,]+)/ig)];
+      if(mm.length) principalStake=toNum(mm[0][1]);
+    }
+
+    const title=clean.match(/^\s*([A-ZÀ-Ý][^\n]{4,90}?-\s*EXTRAÇÃO)/im);
+    if(title) principalNome=title[1].trim();
+
+    pernas.principal={investimento:principalStake,odd:principalOdd,casa:principalCasa,nome:principalNome};
+    return pernas;
   }
 
   function parseTextoColado(texto){
@@ -2614,8 +2770,54 @@
           statusEl.style.color = 'var(--red)';
           return;
         }
-        const especificas = parseExtracaoMultipla(texto);
+        const blocosOcr = texto.split(/\n--- OCR PASS ---\n/i).map(s=>s.trim()).filter(Boolean);
+        let especificas=[];
+        let bestScore=-1;
+        blocosOcr.forEach(bloco=>{
+          const candidata=parseExtracaoMultipla(bloco);
+          if(!candidata.length) return;
+          let score=candidata.length*100;
+          const comCasa=candidata.filter(x=>x.casa).length;
+          const comValores=candidata.filter(x=>x.stake!=null&&x.odd!=null).length;
+          const lay=candidata.filter(x=>x.acao==='lay').length;
+          score+=comCasa*25+comValores*25+lay*10;
+          if(candidata.principal && candidata.principal.investimento!=null) score+=20;
+          if(candidata.principal && candidata.principal.odd!=null) score+=20;
+          if(score>bestScore){bestScore=score;especificas=candidata;}
+        });
         const encontradas = especificas.length ? especificas : parseTextoColado(texto);
+
+        // O cabeçalho da múltipla é lido em um crop separado e, por isso,
+        // pode não produzir "pernas". Mesmo assim precisamos aproveitar seus
+        // valores de investimento/odd para preencher a Operação 1.
+        const principalCandidates = blocosOcr.map(bloco=>{
+          const inv =
+            bloco.match(/(?:INVESTIMENTO|INVESTMENTO|MVESTIMENTO|MVESTMENTO)[\s\S]{0,100}?R\$\s*([\d.,]+)/i) ||
+            bloco.match(/APOSTA\s+PRINCIPAL[\s\S]{0,120}?R\$\s*([\d.,]+)/i);
+          const odd =
+            bloco.match(/ODD\s+TOTAL[\s\S]{0,100}?TIPO[\s\S]{0,60}?([\d]{1,3}[.,][\d]{2})/i) ||
+            bloco.match(/ODD\s+TOTAL[^\n]*\n(?:[^\n]*\n){0,2}\s*([\d]{1,3}[.,][\d]{2})/i);
+          const norm=v=>{
+            let n=parseFloat(String(v||'').replace(/[^\d.,]/g,'').replace(/\./g,'').replace(',','.'));
+            if(!Number.isFinite(n)) return null;
+            if(n>=10 && n<100){
+              const c=parseFloat(n.toFixed(2).slice(1));
+              if(c>=1.01 && c<=9.99) n=c;
+            }
+            return n;
+          };
+          return {
+            investimento: inv ? norm(inv[1]) : null,
+            odd: odd ? norm(odd[1]) : null,
+            casa: (bloco.match(/APOSTA\s+PRINCIPAL\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9 &.\-]{2,40})/i)||[])[1] || null
+          };
+        }).filter(x=>x.investimento!=null || x.odd!=null);
+
+        const principalOcr = principalCandidates.sort((a,b)=>{
+          const sa=(a.investimento!=null?2:0)+(a.odd!=null?2:0);
+          const sb=(b.investimento!=null?2:0)+(b.odd!=null?2:0);
+          return sb-sa;
+        })[0] || especificas.principal || null;
         // dedupe final
         const seen=new Set();
         const apostas=encontradas.filter(e=>{
@@ -2629,6 +2831,23 @@
           return;
         }
         syncFormIntoWorking();
+
+        // Preenche os campos da múltipla principal somente quando o OCR encontrou
+        // os valores no cabeçalho. Isso não altera nenhuma operação já salva.
+        if(principalOcr){
+          const stakeEl=document.getElementById('mult_stake');
+          const oddEl=document.getElementById('mult_odd');
+          const casaEl=document.getElementById('em_casa');
+          const nomeEl=document.getElementById('em_nome');
+          if(stakeEl && principalOcr.investimento!=null) stakeEl.value=Number(principalOcr.investimento).toFixed(2);
+          if(oddEl && principalOcr.odd!=null) oddEl.value=Number(principalOcr.odd).toFixed(2);
+          if(casaEl && principalOcr.casa){
+            const opt=[...casaEl.options].find(o=>String(o.value).toUpperCase()===String(principalOcr.casa).toUpperCase());
+            if(opt) casaEl.value=opt.value;
+          }
+          if(nomeEl && principalOcr.nome) nomeEl.value=principalOcr.nome;
+        }
+
         let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>Number(p.perna_num)||0)) : 0;
         apostas.forEach(e=>{
           nextNum++;
@@ -2643,7 +2862,7 @@
           p.acao = e.acao === 'lay' ? 'lay' : 'back';
           workingPernas.push(p);
         });
-        statusEl.textContent = `${apostas.length} perna(s) reconhecida(s)${origem==='clipboard' ? ' da imagem colada' : ''}. Confira casa, ação, odd e stake antes de salvar.`;
+        statusEl.textContent = `${apostas.length} perna(s) reconhecida(s)${origem==='clipboard' ? ' da imagem colada' : ''}${principalOcr && principalOcr.investimento!=null && principalOcr.odd!=null ? ' — múltipla principal preenchida' : ''}. Confira casa, ação, odd e stake antes de salvar.`;
         statusEl.style.color = 'var(--green)';
         render();
       }catch(e){
