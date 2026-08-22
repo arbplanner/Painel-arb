@@ -2311,6 +2311,208 @@
     return pernas;
   }
 
+  // Parser do layout exato da calculadora "Esportes da Sorte - Extração".
+  // Regra fixa do layout:
+  //  - cartão principal -> operação 1
+  //  - card da esquerda -> operação 2
+  //  - card da direita -> operação 3
+  function parseLayoutEsportesDaSorte(texto){
+    const raw=String(texto||'').replace(/\r/g,'').replace(/\u00a0/g,' ');
+    if(!/APOSTA\s+PRINCIPAL/i.test(raw) || !/APOSTAR\s+EM/i.test(raw)) return null;
+
+    const txt=raw
+      .replace(/--- OCR PASS ---/gi,'\n')
+      .replace(/Apostarem/gi,'Apostar em')
+      .replace(/R\s*[S5]\s*[\$]/gi,'R$')
+      .replace(/\b[NnAa]\s*\$\s*/g,'R$ ')
+      .replace(/\b[Nn][Ss]\s*/g,'R$ ')
+      .replace(/[ \t]+/g,' ')
+      .replace(/[ \t]*\n[ \t]*/g,'\n');
+
+    const num=s=>{
+      let v=String(s||'').replace(/[^\d.,]/g,'');
+      if(!v) return null;
+      if(v.includes(',') && v.includes('.')) v=v.replace(/\./g,'').replace(',','.');
+      else if(v.includes(',')) v=v.replace(',','.');
+      const n=parseFloat(v);
+      return Number.isFinite(n)?n:null;
+    };
+
+    // Para a odd COMBINADA da múltipla, não usamos o normalizador que remove
+    // o primeiro dígito: 14.83 é realmente 14.83.
+    const normPrincipalOdd=s=>num(s);
+    const normCardOdd=s=>{
+      const n=num(s);
+      if(n==null) return null;
+      // Neste layout o OCR pode duplicar o dígito inicial:
+      // 4.98 -> 84.98 e 1.65 -> 81.65.
+      if(n>=10 && n<100){
+        const c=parseFloat(n.toFixed(2).slice(1));
+        if(c>=1.01 && c<=9.99) return c;
+      }
+      return n;
+    };
+
+    const normCasa=s=>String(s||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toUpperCase().replace(/[^A-Z0-9&]+/g,'');
+
+    const aliases={
+      ESPORTESDASORTE:'ESPORTES DA SORTE',
+      ESPORTESDASORTECOM:'ESPORTES DA SORTE',
+      ESPORTESDASORT:'ESPORTES DA SORTE',
+      ESPORTESDAS0RTE:'ESPORTES DA SORTE',
+      KINGPANDA:'KINGPANDA',
+      KINGPAND:'KINGPANDA',
+      KINGPANDAL:'KINGPANDA',
+      BETANO:'BETANO',
+      BETAN0:'BETANO',
+      BETAN:'BETANO'
+    };
+
+    const known=(typeof allCasas==='function'?allCasas():[]).concat(
+      ['ESPORTES DA SORTE','KINGPANDA','BETANO']
+    );
+    const canonical={};
+    known.forEach(c=>{const n=normCasa(c); if(n) canonical[n]=c;});
+
+    function lev(a,b){
+      const dp=Array(b.length+1).fill(0).map((_,i)=>i);
+      for(let i=1;i<=a.length;i++){
+        let prev=dp[0]; dp[0]=i;
+        for(let j=1;j<=b.length;j++){
+          const cur=dp[j];
+          dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+          prev=cur;
+        }
+      }
+      return dp[b.length];
+    }
+    function casa(s){
+      const n=normCasa(s);
+      if(!n) return null;
+      if(aliases[n]) return aliases[n];
+      if(canonical[n]) return canonical[n];
+      let best=null,bd=999;
+      Object.keys(canonical).forEach(k=>{
+        const d=lev(n,k);
+        const lim=Math.max(1,Math.floor(Math.max(n.length,k.length)*0.28));
+        if(d<=lim && d<bd){bd=d;best=canonical[k];}
+      });
+      return best || String(s||'').trim();
+    }
+
+    const lines=txt.split('\n').map(x=>x.trim()).filter(Boolean);
+
+    // ---------- Operação 1: cartão principal ----------
+    let principalNome='';
+    let principalCasa=null;
+    const pcMatch=txt.match(/APOSTA\s+PRINCIPAL\s*(?:\n|\s)+([A-Za-zÀ-ÿ0-9.&'\- ]{2,50}?)(?=\s+INVESTIMENTO|\s+ODD\s+TOTAL|\s+TIPO|\n)/i);
+    if(pcMatch) principalCasa=casa(pcMatch[1].trim());
+
+
+    const headerStart=lines.findIndex(l=>/^APOSTA\s+PRINCIPAL/i.test(l));
+    const firstBet=lines.findIndex(l=>/^Apostar\s+em/i.test(l));
+    const headerLines=lines.slice(
+      headerStart>=0?headerStart:0,
+      firstBet>=0?firstBet:Math.min(lines.length,12)
+    ).join('\n');
+
+    let principalStake=null;
+    let principalOdd=null;
+
+    const invPos=headerLines.search(/INVESTIMENTO\s*:/i);
+    if(invPos>=0){
+      const invChunk=headerLines.slice(invPos, invPos+140);
+      const m=invChunk.match(/R\$\s*([\d.,]+)/i);
+      if(m) principalStake=num(m[1]);
+    }
+    if(principalStake==null){
+      const m=headerLines.match(/R\$\s*([\d.,]+)/i);
+      if(m) principalStake=num(m[1]);
+    }
+
+    const oddPos=headerLines.search(/ODD\s+TOTAL\s*:/i);
+    if(oddPos>=0){
+      const oddChunk=headerLines.slice(oddPos, oddPos+180);
+      // No OCR, "R$ 30,00" aparece entre ODD TOTAL e o número da odd.
+      // Portanto procuramos o último número decimal antes de "Freebet".
+      const m=oddChunk.match(/TIPO[\s\S]*?R\$\s*[\d.,]+[\s\S]*?([\d]{1,3}(?:[.,]\d{1,3})?)(?=\s*(?:Freebet|$))/i);
+      if(m) principalOdd=normPrincipalOdd(m[1]);
+      else{
+        const nums=[...oddChunk.matchAll(/([\d]{1,3}(?:[.,]\d{1,3})?)/g)].map(x=>normPrincipalOdd(x[1])).filter(v=>v!=null);
+        if(nums.length) principalOdd=nums[nums.length-1];
+      }
+    }
+
+    // Nome pode ser o título no topo, mas não usamos isso para preencher a casa.
+    const titleMatch=txt.match(/^\s*([A-ZÀ-Ý][^\n]{3,100}?-\s*EXTRAÇÃO)\s*$/im);
+    if(titleMatch) principalNome=titleMatch[1].trim();
+
+    // ---------- Operações 2 e 3: exatamente os dois cards BACK ----------
+    // A primeira lista contém os dois "Apostar em ... R$ stake".
+    // A segunda lista contém os dois "[Casa] (odd)".
+    const stakes=[];
+    const reStake=/Apostar\s+em\s+(.+?)\s+R\$\s*([\d.,]+)/ig;
+    let m;
+    while((m=reStake.exec(txt))){
+      stakes.push({
+        descricao:m[1].replace(/\s+/g,' ').trim(),
+        stake:num(m[2]),
+        pos:m.index
+      });
+    }
+
+    const housesOdds=[];
+    const reHO=/\[([^\[\]\n]{2,35})[\]\):\-]*\s*\(\s*([^\d]*)(\d{1,3}(?:[.,]\d{1,3})?)\s*\)/ig;
+    while((m=reHO.exec(txt))){
+      housesOdds.push({
+        casa:casa(m[1]),
+        odd:normCardOdd(m[2]+m[3]),
+        pos:m.index
+      });
+    }
+
+    if(stakes.length<2 || housesOdds.length<2 || principalStake==null || principalOdd==null || !principalCasa){
+      return null;
+    }
+
+    const pernas=[];
+    for(let i=0;i<2;i++){
+      const s=stakes[i];
+      const h=housesOdds[i];
+      pernas.push({
+        perna_num:i+2,
+        sub:String.fromCharCode(65+i),
+        plataforma:h.casa,
+        rotulo:s.descricao,
+        selecao_multipla:s.descricao,
+        evento:eventBeforeLayout(txt,s.pos),
+        odd:h.odd,
+        stake:s.stake,
+        acao:'back',
+        etapa:i+1
+      });
+    }
+
+    return {
+      principal:{
+        investimento:principalStake,
+        odd:principalOdd,
+        casa:principalCasa,
+        nome:principalNome
+      },
+      pernas
+    };
+
+    function eventBeforeLayout(text,pos){
+      const before=text.slice(0,pos);
+      const ms=[...before.matchAll(/([A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,5}\s+x\s+[A-Za-zÀ-ÿ0-9.'’\-]+(?:\s+[A-Za-zÀ-ÿ0-9.'’\-]+){0,5})/ig)];
+      return ms.length ? ms[ms.length-1][1].replace(/\s+/g,' ').trim() : '';
+    }
+  }
+
+
   function parseTextoColado(texto){
     const linhasBrutas = texto.split('\n').map(l=>l.trim()).filter(l=>l!=='');
     const startIdx = linhasBrutas.findIndex(l => /cen[aá]rio vencedor/i.test(l));
@@ -2785,7 +2987,8 @@
           if(candidata.principal && candidata.principal.odd!=null) score+=20;
           if(score>bestScore){bestScore=score;especificas=candidata;}
         });
-        const encontradas = especificas.length ? especificas : parseTextoColado(texto);
+        const layoutExato = blocosOcr.map(b=>parseLayoutEsportesDaSorte(b)).find(Boolean) || null;
+        const encontradas = layoutExato?.pernas?.length ? layoutExato.pernas : (especificas.length ? especificas : parseTextoColado(texto));
 
         // O cabeçalho da múltipla é lido em um crop separado e, por isso,
         // pode não produzir "pernas". Mesmo assim precisamos aproveitar seus
@@ -2813,7 +3016,7 @@
           };
         }).filter(x=>x.investimento!=null || x.odd!=null);
 
-        const principalOcr = principalCandidates.sort((a,b)=>{
+        const principalOcr = layoutExato?.principal || principalCandidates.sort((a,b)=>{
           const sa=(a.investimento!=null?2:0)+(a.odd!=null?2:0);
           const sb=(b.investimento!=null?2:0)+(b.odd!=null?2:0);
           return sb-sa;
@@ -2856,7 +3059,7 @@
           p.rotulo = e.descricao || null;
           p.selecao_multipla = e.descricao || null;
           p.evento = e.evento || '';
-          p.perna_num = Number(e.etapa) || nextNum;
+          p.perna_num = Number(e.perna_num || e.etapa) || nextNum;
           p.odd = e.odd!=null && !isNaN(e.odd) ? e.odd : null;
           p.stake = e.stake!=null && !isNaN(e.stake) ? e.stake : null;
           p.acao = e.acao === 'lay' ? 'lay' : 'back';
