@@ -446,10 +446,6 @@
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
     Calculadora Múltipla
   </a>
-  <a class="side-item" href="calculadora-equalizador.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
-    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"/><path d="M7 8h10M7 12h10M7 16h4M15 16h3"/></svg></span>
-    Calculadora
-  </a>
   <a class="side-item" href="protecao-dg.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
     Proteção DG
@@ -534,10 +530,20 @@
         <button class="icon-sq-btn" id="editModalCloseX" title="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg></button>
       </div>
     </div>
-    <div id="colarPopover" class="panel" style="display:none; position:absolute; top:52px; right:20px; width:280px; z-index:30; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-      <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">📷 Print de outra calculadora (OCR local — grátis, sem conta)</div>
+    <div id="colarPopover" class="panel" style="display:none; position:absolute; top:52px; right:20px; width:330px; z-index:30; box-shadow:0 8px 24px rgba(0,0,0,0.4);">
+      <div style="font-size:11px; color:var(--muted); margin-bottom:8px;">📷 Importar print de outra calculadora</div>
+      <div id="ocrPasteZone" tabindex="0" style="border:1px dashed var(--blue); border-radius:10px; padding:12px; text-align:center; margin-bottom:8px; cursor:pointer; background:rgba(76,147,255,.05);">
+        <div style="font-size:18px; margin-bottom:4px;">📋</div>
+        <div style="font-size:12px; font-weight:700; color:var(--text);">Cole o print com Ctrl + V</div>
+        <div style="font-size:10px; color:var(--muted); margin-top:3px;">Clique aqui e cole uma imagem da área de transferência</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; margin:7px 0;">
+        <div style="height:1px; flex:1; background:var(--border);"></div>
+        <span style="font-size:10px; color:var(--muted);">OU</span>
+        <div style="height:1px; flex:1; background:var(--border);"></div>
+      </div>
       <input type="file" id="ocrFile" accept="image/*" style="font-size:11px; color:var(--muted); width:100%; margin-bottom:8px;">
-      <button class="btn btn-blue" id="btnOcrLer" style="width:100%; padding:7px 0;">🔍 Ler imagem</button>
+      <button class="btn btn-blue" id="btnOcrLer" style="width:100%; padding:7px 0;">🔍 Ler imagem selecionada</button>
       <div id="ocrStatus" style="font-size:11px; color:var(--muted); margin-top:8px;"></div>
     </div>
     <div id="editModalBody"></div>
@@ -1109,7 +1115,7 @@
     renderFreebetsList();
     updateFreebetsBadge();
     renderSaldosCasas();
-    if(!consumeCalculatorImport()) openFromUrlIfNeeded();
+    openFromUrlIfNeeded();
   }
 
   function bankrollStats(name){
@@ -1377,57 +1383,6 @@
     if(!tag) return;
     if(n>0){ tag.style.display='inline-block'; tag.textContent = n; }
     else { tag.style.display='none'; }
-  }
-
-
-  // Recebe a operação enviada pela Calculadora Equalizadora via localStorage.
-  function consumeCalculatorImport(){
-    const params = new URLSearchParams(location.search);
-    if(params.get('calculatorImport') !== '1') return false;
-
-    const raw = localStorage.getItem('duploGreenCalculatorImport');
-    if(!raw){
-      if(typeof showToast === 'function') showToast('Nenhuma operação da calculadora foi encontrada.', 'warn');
-      params.delete('calculatorImport');
-      const cleanUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
-      history.replaceState(null, '', cleanUrl);
-      return false;
-    }
-
-    try{
-      const imported = JSON.parse(raw);
-
-      if(!imported || !imported.detalhe || !Array.isArray(imported.detalhe.pernas)){
-        throw new Error('Payload inválido da calculadora.');
-      }
-
-      const op = {
-        id: null,
-        data_operacao: imported.data_operacao || hojeBrasilia(),
-        casa: imported.casa || null,
-        nome: imported.nome || 'Operação 1',
-        investimento: imported.investimento ?? null,
-        status: imported.status || 'pendente',
-        bankroll: activeBankroll,
-        detalhe: imported.detalhe
-      };
-
-      // Usa o MESMO editor já existente no painel.
-      // O botão Salvar continua sendo o responsável pelo insert original.
-      openEditModal(op);
-
-      localStorage.removeItem('duploGreenCalculatorImport');
-
-      params.delete('calculatorImport');
-      const cleanUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
-      history.replaceState(null, '', cleanUrl);
-
-      return true;
-    }catch(e){
-      console.error('Erro ao importar operação da calculadora:', e);
-      if(typeof showToast === 'function') showToast('Não foi possível abrir a operação enviada pela calculadora.', 'err');
-      return false;
-    }
   }
 
   function openFromUrlIfNeeded(){
@@ -1961,7 +1916,7 @@
 
   // Tesseract.js (OCR gratuito, roda inteiro no navegador — sem chave, sem conta, sem custo) ------
   async function lerImagemComTesseract(file, onProgress){
-    const { data } = await Tesseract.recognize(file, 'por', {
+    const { data } = await Tesseract.recognize(file, 'por+eng', {
       logger: m=>{
         if(onProgress && m.status==='recognizing text') onProgress(Math.round((m.progress||0)*100));
       }
@@ -1979,6 +1934,79 @@
 
   // Tenta reconhecer o texto colado de outra calculadora (tabela "Cenário Vencedor / Stakes / ODD / Lucro / Retorno").
   // É um "melhor esforço" — funciona para o formato mostrado, mas sempre deixa pra você conferir/ajustar antes de salvar.
+  // Parser específico para prints de "Múltiplas com Cobertura / Extração".
+  // Entende blocos como: Etapa 1, Apostar em, Fazer LAY (Contra), [Casa], Stake e odd.
+  function parseExtracaoMultipla(texto){
+    const limpo = (texto||'')
+      .replace(/\r/g,'')
+      .replace(/[|]/g,' ')
+      .replace(/\s+\n/g,'\n');
+
+    if(!/(etapa\s*\d+|fazer\s+lay|apostar\s+em)/i.test(limpo)) return [];
+
+    const toNum = s => {
+      const v=(s||'').replace(/[^\d.,]/g,'');
+      if(!v) return null;
+      const norm=v.includes(',') ? v.replace(/\./g,'').replace(',','.') : v;
+      const n=parseFloat(norm);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const blocks = limpo.split(/(?=etapa\s*\d+)/ig).filter(b=>/(apostar\s+em|fazer\s+lay)/i.test(b));
+    const pernas=[];
+
+    blocks.forEach(block=>{
+      const etapa = (block.match(/etapa\s*(\d+)/i)||[])[1] || '';
+      const isLay = /fazer\s+lay/i.test(block);
+      let casa=null, descricao='';
+
+      // Casa entre colchetes: [BETBRA], [KingPanda], [Betano]
+      const casas=[...block.matchAll(/\[([^\]\n]{2,50})\]/g)]
+        .map(m=>m[1].trim())
+        .filter(x=>!/^\s*(?:contra|lay|back)\s*$/i.test(x));
+      if(casas.length) casa=casas[casas.length-1];
+
+      let stake=null, odd=null;
+      if(isLay){
+        const d=block.match(/(?:lay\s*\(contra\)\s*:?\s*|fazer\s+lay.*?:\s*)(.+?)(?=\s*(?:\[|apostar|stake|risco|$))/is);
+        descricao=d ? d[1].replace(/\s+/g,' ').trim() : '';
+        const sm=block.match(/(?:apostar\s*\(?\s*stake\s*\)?|stake)\s*:?\s*R\$\s*([\d.,]+)/i);
+        if(sm) stake=toNum(sm[1]);
+        const om=block.match(/(?:apostar\s*\(?\s*stake\s*\)?|stake)[\s\S]{0,80}?\(\s*([\d.,]+)\s*\)/i);
+        if(om) odd=toNum(om[1]);
+      }else{
+        const d=block.match(/apostar\s+em\s*:?\s*([\s\S]*?)(?=\s*R\$\s*[\d.,]+)/i);
+        descricao=d ? d[1].replace(/\s+/g,' ').trim() : '';
+        const sm=block.match(/apostar\s+em[\s\S]{0,250}?R\$\s*([\d.,]+)/i);
+        if(sm) stake=toNum(sm[1]);
+
+        // Pega odds em parênteses e ignora valores monetários como (€4.90).
+        const odds=[...block.matchAll(/\(\s*(?:odd\s*:?\s*)?(\d{1,2}[.,]\d{1,3})\s*\)/ig)]
+          .map(m=>toNum(m[1])).filter(n=>n!=null && n>=1.01 && n<=100);
+        if(odds.length) odd=odds[odds.length-1];
+      }
+
+      if(casa && (stake!=null || odd!=null || descricao)){
+        pernas.push({
+          casa: casa.toUpperCase(),
+          descricao: descricao || (etapa ? `Etapa ${etapa}` : ''),
+          stake, odd,
+          acao: isLay ? 'lay' : 'back',
+          etapa: etapa ? Number(etapa) : null
+        });
+      }
+    });
+
+    // Remove duplicatas ocasionais causadas pelo OCR.
+    const unique=[];
+    const seen=new Set();
+    pernas.forEach(p=>{
+      const k=[p.casa,p.descricao,p.stake,p.odd,p.acao].join('|');
+      if(!seen.has(k)){ seen.add(k); unique.push(p); }
+    });
+    return unique;
+  }
+
   function parseTextoColado(texto){
     const linhasBrutas = texto.split('\n').map(l=>l.trim()).filter(l=>l!=='');
     const startIdx = linhasBrutas.findIndex(l => /cen[aá]rio vencedor/i.test(l));
@@ -2415,11 +2443,10 @@
       $('colarPopover').style.display = colarAberto ? 'block' : 'none';
     };
 
-    $('btnOcrLer').onclick = async ()=>{
-      const fileInput = $('ocrFile');
+    async function processarImagemOCR(file, origem){
       const statusEl = $('ocrStatus');
-      if(!fileInput.files || !fileInput.files[0]){
-        statusEl.textContent = 'Escolha um arquivo de imagem primeiro.';
+      if(!file){
+        statusEl.textContent = 'Nenhuma imagem recebida.';
         statusEl.style.color = 'var(--amber)';
         return;
       }
@@ -2428,26 +2455,33 @@
         statusEl.style.color = 'var(--amber)';
         return;
       }
-      statusEl.textContent = 'Lendo imagem... 0%';
+      statusEl.textContent = `${origem==='clipboard' ? 'Lendo imagem colada' : 'Lendo imagem'}... 0%`;
       statusEl.style.color = 'var(--muted)';
       try{
-        const texto = await lerImagemComTesseract(fileInput.files[0], (pct)=>{
-          statusEl.textContent = `Lendo imagem... ${pct}%`;
+        const texto = await lerImagemComTesseract(file, (pct)=>{
+          statusEl.textContent = `${origem==='clipboard' ? 'Lendo imagem colada' : 'Lendo imagem'}... ${pct}%`;
         });
         if(!texto || !texto.trim()){
           statusEl.textContent = 'Não consegui ler nenhum texto nessa imagem.';
           statusEl.style.color = 'var(--red)';
           return;
         }
-        const encontradas = parseTextoColado(texto);
-        if(!encontradas.length){
-          statusEl.textContent = 'Não consegui reconhecer nenhuma aposta nessa imagem.';
+        const encontradas = parseExtracaoMultipla(texto).concat(parseTextoColado(texto));
+        // dedupe final
+        const seen=new Set();
+        const apostas=encontradas.filter(e=>{
+          const k=[e.casa,e.descricao,e.stake,e.odd,e.acao].join('|');
+          if(seen.has(k)) return false;
+          seen.add(k); return true;
+        });
+        if(!apostas.length){
+          statusEl.textContent = 'Não consegui reconhecer nenhuma aposta nesse formato. Tente um print mais nítido.';
           statusEl.style.color = 'var(--red)';
           return;
         }
         syncFormIntoWorking();
-        let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>p.perna_num)) : 0;
-        encontradas.forEach(e=>{
+        let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>Number(p.perna_num)||0)) : 0;
+        apostas.forEach(e=>{
           nextNum++;
           const p = novaPernaEmBranco(nextNum);
           p.plataforma = e.casa || null;
@@ -2455,17 +2489,48 @@
           p.selecao_multipla = e.descricao || null;
           p.odd = e.odd!=null && !isNaN(e.odd) ? e.odd : null;
           p.stake = e.stake!=null && !isNaN(e.stake) ? e.stake : null;
+          p.acao = e.acao === 'lay' ? 'lay' : 'back';
           workingPernas.push(p);
         });
-        statusEl.textContent = `${encontradas.length} perna(s) adicionada(s) — confira odd/stake nos campos abaixo (o OCR local erra às vezes).`;
+        statusEl.textContent = `${apostas.length} perna(s) adicionada(s)${origem==='clipboard' ? ' da imagem colada' : ''} — confira os dados antes de salvar.`;
         statusEl.style.color = 'var(--green)';
         render();
       }catch(e){
         statusEl.textContent = 'Erro ao ler imagem: ' + (e.message||e);
         statusEl.style.color = 'var(--red)';
       }
+    }
+
+    $('btnOcrLer').onclick = async ()=>{
+      const fileInput = $('ocrFile');
+      if(!fileInput.files || !fileInput.files[0]){
+        $('ocrStatus').textContent = 'Escolha um arquivo ou cole um print com Ctrl + V.';
+        $('ocrStatus').style.color = 'var(--amber)';
+        return;
+      }
+      await processarImagemOCR(fileInput.files[0], 'file');
     };
 
+    // Ctrl+V: aceita imagem copiada do print sem precisar salvar o arquivo.
+    const ocrPasteZone = $('ocrPasteZone');
+    ocrPasteZone.onclick = ()=>ocrPasteZone.focus();
+    const clipboardHandler = async (ev)=>{
+      if(!colarAberto) return;
+      const items=[...(ev.clipboardData?.items || [])];
+      const imageItem=items.find(item=>item.type && item.type.startsWith('image/'));
+      if(!imageItem) return;
+      const image=imageItem.getAsFile();
+      if(!image) return;
+      ev.preventDefault();
+      await processarImagemOCR(image, 'clipboard');
+    };
+    document.addEventListener('paste', clipboardHandler);
+    // Remove o listener quando o modal for fechado para não interceptar Ctrl+V em outras telas.
+    const oldClose = $('editModalCloseX').onclick;
+    $('editModalCloseX').onclick = ()=>{
+      document.removeEventListener('paste', clipboardHandler);
+      if(typeof oldClose==='function') oldClose();
+    };
     render();
   }
 
