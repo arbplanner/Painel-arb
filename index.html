@@ -982,6 +982,61 @@
   function loadCasasCustom(){ try{ return JSON.parse(localStorage.getItem(CASAS_KEY))||[]; }catch(e){ return []; } }
   function saveCasasCustom(arr){ localStorage.setItem(CASAS_KEY, JSON.stringify(arr)); }
   function allCasas(){ return [...new Set([...CASAS_PADRAO, ...loadCasasCustom()])].sort(); }
+
+  function casaOptionValue(nome){
+    const alvo=String(nome||'').trim();
+    if(!alvo) return null;
+    const norm=v=>String(v||'')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+      .toUpperCase().replace(/[^A-Z0-9]+/g,'');
+
+    const casas=allCasas();
+    const n=norm(alvo);
+
+    // 1) Correspondência exata/normalizada.
+    let hit=casas.find(c=>norm(c)===n);
+    if(hit) return hit;
+
+    // 2) Alguns nomes usados pelo OCR são variantes da forma cadastrada.
+    const aliases={
+      'ESPORTESDASORTE':'ESPORTESDASORTE',
+      'ESPORTESDASORTECOM':'ESPORTESDASORTE',
+      'ESPORTESDAS0RTE':'ESPORTESDASORTE',
+      'ESPORTESDASORT':'ESPORTESDASORTE',
+      'KINGPANDAL':'KINGPANDA',
+      'KINGPANDA':'KINGPANDA',
+      'BETAN0':'BETANO',
+      'BETANO':'BETANO',
+      'BETBRA':'BETBRA',
+      'BET7K':'BET7K'
+    };
+    if(aliases[n]){
+      hit=casas.find(c=>norm(c)===norm(aliases[n]));
+      if(hit) return hit;
+    }
+
+    // 3) Pequena tolerância a erro de OCR.
+    const dist=(a,b)=>{
+      const dp=Array(b.length+1).fill(0).map((_,i)=>i);
+      for(let i=1;i<=a.length;i++){
+        let prev=dp[0]; dp[0]=i;
+        for(let j=1;j<=b.length;j++){
+          const cur=dp[j];
+          dp[j]=Math.min(dp[j]+1,dp[j-1]+1,prev+(a[i-1]===b[j-1]?0:1));
+          prev=cur;
+        }
+      }
+      return dp[b.length];
+    };
+    let best=null,bestD=999;
+    casas.forEach(c=>{
+      const d=dist(n,norm(c));
+      const lim=Math.max(1,Math.floor(Math.max(n.length,norm(c).length)*0.2));
+      if(d<=lim && d<bestD){best=c;bestD=d;}
+    });
+    return best;
+  }
+
   function casaOptionsHtml(selected){
     const casas = allCasas();
     let opts = '<option value="">Selecione...</option>';
@@ -3085,7 +3140,7 @@
         // os valores no cabeçalho. Isso não altera nenhuma operação já salva.
         if(principalOcr){
           op.investimento = principalOcr.investimento!=null ? Number(principalOcr.investimento) : op.investimento;
-          op.casa = principalOcr.casa || op.casa;
+          op.casa = casaOptionValue(principalOcr.casa) || principalOcr.casa || op.casa;
           op.detalhe = op.detalhe || {};
           op.detalhe.multipla = {
             ...(op.detalhe.multipla || {}),
@@ -3098,8 +3153,14 @@
           if(stakeEl && principalOcr.investimento!=null) stakeEl.value=Number(principalOcr.investimento).toFixed(2);
           if(oddEl && principalOcr.odd!=null) oddEl.value=Number(principalOcr.odd).toFixed(2);
           if(casaEl && principalOcr.casa){
-            const opt=[...casaEl.options].find(o=>String(o.value).toUpperCase()===String(principalOcr.casa).toUpperCase());
-            if(opt) casaEl.value=opt.value;
+            const exactCasa=casaOptionValue(principalOcr.casa);
+            if(exactCasa){
+              casaEl.value=exactCasa;
+              casaEl.dispatchEvent(new Event('change',{bubbles:true}));
+            }else{
+              const opt=[...casaEl.options].find(o=>String(o.value).toUpperCase()===String(principalOcr.casa).toUpperCase());
+              if(opt) casaEl.value=opt.value;
+            }
           }
           if(nomeEl && principalOcr.nome) nomeEl.value=principalOcr.nome;
 
@@ -3114,7 +3175,7 @@
         apostas.forEach(e=>{
           nextNum++;
           const p = novaPernaEmBranco(nextNum);
-          p.plataforma = e.casa || null;
+          p.plataforma = casaOptionValue(e.casa) || e.casa || null;
           p.rotulo = e.descricao || null;
           p.selecao_multipla = e.descricao || null;
           p.evento = e.evento || '';
