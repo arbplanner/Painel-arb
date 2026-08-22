@@ -3084,6 +3084,13 @@
         // Preenche os campos da múltipla principal somente quando o OCR encontrou
         // os valores no cabeçalho. Isso não altera nenhuma operação já salva.
         if(principalOcr){
+          op.investimento = principalOcr.investimento!=null ? Number(principalOcr.investimento) : op.investimento;
+          op.casa = principalOcr.casa || op.casa;
+          op.detalhe = op.detalhe || {};
+          op.detalhe.multipla = {
+            ...(op.detalhe.multipla || {}),
+            odd: principalOcr.odd!=null ? Number(principalOcr.odd) : (op.detalhe.multipla?.odd ?? null)
+          };
           const stakeEl=document.getElementById('mult_stake');
           const oddEl=document.getElementById('mult_odd');
           const casaEl=document.getElementById('em_casa');
@@ -3095,6 +3102,12 @@
             if(opt) casaEl.value=opt.value;
           }
           if(nomeEl && principalOcr.nome) nomeEl.value=principalOcr.nome;
+
+          // IMPORTANTE: os campos acima são escritos diretamente no DOM.
+          // Antes do render() precisamos sincronizá-los para `op`, caso contrário
+          // o render reconstrói o modal com os valores antigos e aparentemente
+          // "apaga" o OCR da Operação 1.
+          syncFormIntoWorking();
         }
 
         let nextNum = workingPernas.length ? Math.max(...workingPernas.map(p=>Number(p.perna_num)||0)) : 0;
