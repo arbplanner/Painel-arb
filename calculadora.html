@@ -39,20 +39,38 @@
   .num{font-family:'JetBrains Mono',monospace;}
 
   header{
-    padding:28px 32px 20px;
+    padding:18px 32px;
     display:flex;
-    align-items:baseline;
+    align-items:center;
     justify-content:space-between;
     flex-wrap:wrap;
-    gap:12px;
+    gap:14px;
     border-bottom:1px solid var(--line);
   }
-  .brand{display:flex; align-items:baseline; gap:10px;}
+  .brand{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
   .brand .mark{
-    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; letter-spacing:-0.02em;
-    color:var(--green);
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; letter-spacing:0.02em;
+    color:var(--text); display:flex; align-items:center; gap:8px;
   }
-  .brand .sub{color:var(--muted); font-size:13px;}
+  .brand .mark .ic{color:var(--green); font-size:18px;}
+  .header-badge{
+    display:flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--line);
+    border-radius:20px; padding:5px 12px; font-size:11.5px; color:var(--green);
+  }
+  .header-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .hbtn{
+    display:flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--line);
+    color:var(--text); font-size:12px; font-weight:600; padding:9px 14px; border-radius:8px; cursor:pointer;
+    font-family:'Inter'; position:relative;
+  }
+  .hbtn:hover{border-color:var(--muted);}
+  .hbtn.cloud{background:var(--amber); color:#241a05; border-color:var(--amber);}
+  .hbtn.danger{color:var(--red);}
+  .hbtn.danger:hover{border-color:var(--red);}
+  .hbtn .badge-count{
+    background:var(--blue); color:#fff; font-size:10px; font-weight:700; border-radius:50%;
+    width:16px; height:16px; display:flex; align-items:center; justify-content:center;
+  }
   .strategy-name{
     background:transparent; border:none; border-bottom:1px solid var(--line);
     color:var(--text); font-size:14px; padding:6px 2px; width:220px; font-family:'Inter';
@@ -86,6 +104,24 @@
   .config-bar{
     display:flex; flex-wrap:wrap; gap:18px; margin-bottom:20px;
   }
+  .config-row1{
+    display:grid; grid-template-columns:1.6fr 1fr 1fr; gap:18px; margin-bottom:18px; align-items:end;
+  }
+  .config-row2{
+    display:flex; flex-wrap:wrap; align-items:end; gap:20px; margin-bottom:4px;
+  }
+  .config-checks{
+    display:flex; flex-wrap:wrap; gap:16px; margin-left:auto; padding-bottom:8px;
+  }
+  @media (max-width:900px){ .config-row1{grid-template-columns:1fr;} .config-checks{margin-left:0;} }
+  .etapas-pill{
+    display:flex; background:var(--panel-2); border-radius:8px; padding:4px; border:1px solid var(--line);
+  }
+  .etapas-pill button{
+    background:transparent; border:none; color:var(--muted); font-size:12px; font-weight:600;
+    padding:8px 14px; border-radius:6px; cursor:pointer;
+  }
+  .etapas-pill button.active{background:var(--amber); color:#241a05;}
   .field{display:flex; flex-direction:column; gap:5px;}
   .field label{font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); font-weight:600;}
   .field input[type=number], .field input[type=text]{
@@ -122,7 +158,7 @@
   .freebet-box.show{display:flex;}
   .freebet-box .field label{color:#e0b361;}
 
-  .etapas{display:flex; flex-direction:column; gap:16px;}
+  .etapas{display:grid; grid-template-columns:repeat(auto-fit, minmax(340px, 1fr)); gap:16px; align-items:start;}
   .etapa{
     background:var(--panel);
     border:1px solid var(--line);
@@ -147,6 +183,64 @@
     padding:6px 12px; border-radius:5px; cursor:pointer; letter-spacing:0.03em;
   }
   .mode-toggle button.active{background:var(--blue); color:#fff;}
+  .mode-toggle button[data-mode="lay"].active{background:var(--red); color:#fff;}
+  .mode-toggle button[data-mode="hedge"].active{background:var(--blue); color:#fff;}
+  .mode-toggle button.filler-btn{opacity:.35; cursor:not-allowed;}
+  .etapa-icons{display:flex; gap:6px;}
+  .icon-btn{
+    width:32px; height:32px; background:var(--panel-2); border:1px solid var(--line); border-radius:7px;
+    cursor:pointer; color:var(--text); font-size:13px; display:flex; align-items:center; justify-content:center;
+  }
+  .icon-btn:hover{border-color:var(--muted);}
+  .icon-btn.locked{background:var(--green-dim); border-color:var(--green); color:var(--green);}
+  .selection-select{
+    width:100%; background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--amber); font-weight:600; padding:10px 12px; font-size:13.5px; font-family:'Inter';
+    margin-bottom:12px; appearance:none; cursor:pointer;
+  }
+  .selection-select:focus{outline:none; border-color:var(--amber);}
+  .back-box{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:14px; text-align:center; margin-bottom:14px;
+  }
+  .back-box .lbl{font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:700; letter-spacing:.05em; margin-bottom:8px;}
+  .back-box .odd-row{display:flex; align-items:center; justify-content:center; gap:6px;}
+  .back-box .odd-row .at{color:var(--muted); font-size:14px;}
+  .back-box .odd-row input{
+    background:transparent; border:none; color:var(--green); font-family:'JetBrains Mono'; font-size:22px;
+    font-weight:700; width:90px; text-align:center;
+  }
+  .back-box .odd-row input:focus{outline:none;}
+  .back-box .casa-entry{
+    margin-top:10px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    color:var(--muted); padding:7px 9px; font-size:11.5px; text-align:center; font-family:'Inter';
+  }
+  .back-box .casa-entry:focus{outline:none; border-color:var(--green);}
+  .hedge-section-title{
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--blue); font-weight:700;
+    display:flex; align-items:center; gap:6px; margin-bottom:10px;
+  }
+  .hedge-section-title .dot{width:6px; height:6px; border-radius:50%; background:var(--blue);}
+  .lay-box{
+    flex:1; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:14px; text-align:center;
+  }
+  .lay-box.cover{border-color:rgba(255,92,108,.35);}
+  .lay-box .lbl{font-size:10px; text-transform:uppercase; color:var(--muted); font-weight:700; letter-spacing:.05em; margin-bottom:8px;}
+  .lay-box .odd-row{display:flex; align-items:center; justify-content:center; gap:6px;}
+  .lay-box .odd-row .at{color:var(--muted); font-size:14px;}
+  .lay-box .odd-row input{
+    background:transparent; border:none; font-family:'JetBrains Mono'; font-size:22px; font-weight:700; width:80px; text-align:center;
+  }
+  .lay-box .odd-row input:focus{outline:none;}
+  .lay-box.cover .odd-row input{color:var(--amber);}
+  .lay-box:not(.cover) .odd-row input{color:var(--green);}
+  .lay-box .casa-entry{
+    margin-top:10px; width:100%; background:var(--panel); border:1px solid var(--line); border-radius:6px;
+    color:var(--muted); padding:7px 9px; font-size:11.5px; text-align:center; font-family:'Inter';
+  }
+  .lay-box .casa-entry:focus{outline:none; border-color:var(--amber);}
+  .lay-two{display:flex; gap:12px; margin-bottom:14px;}
+  .etapa-protect{display:flex; align-items:center; gap:7px; margin-top:14px; font-size:12px; color:var(--muted);}
+  .etapa-protect input{width:15px; height:15px; accent-color:var(--muted); cursor:not-allowed;}
   .lock-badge{font-size:10px; color:var(--green); font-weight:600; margin-left:8px; font-family:'Inter'; letter-spacing:.02em;}
   .lock-btn{
     background:var(--panel-2); border:1px solid var(--line); border-radius:7px;
@@ -331,47 +425,73 @@
 
 <header>
   <div class="brand">
-    <span class="mark">DUPLO GREEN</span>
-    <span class="sub">calculadora de arbitragem &amp; extração de freebets</span>
+    <span class="mark"><span class="ic">✨</span> CALCULADORA DE MÚLTIPLAS VIP</span>
+    <span class="header-badge">💾 Modo Local</span>
   </div>
-  <input class="strategy-name" id="strategyName" placeholder="Nome da estratégia (opcional)">
+  <div class="header-actions">
+    <button class="hbtn" id="btnSave">🔖 Salvar Local</button>
+    <button class="hbtn cloud" id="btnSendPanel">☁️ Salvar na Nuvem</button>
+    <button class="hbtn" id="btnCofre">📂 Cofre de Cálculos <span class="badge-count" id="cofreCount">0</span></button>
+    <button class="hbtn danger" id="btnReset">🗑 Limpar Tudo</button>
+  </div>
 </header>
 
 <div class="layout">
   <div>
     <div class="panel">
-      <div class="panel-title"><span class="dot"></span> Aposta principal</div>
-      <div class="config-bar">
+      <div class="config-row1">
         <div class="field">
-          <label id="investmentLabel">Investimento (múltipla)</label>
+          <label>Nome da estratégia</label>
+          <input type="text" id="strategyName" placeholder="Ex: Betvip - Extração" style="width:100%;">
+        </div>
+        <div class="field">
+          <label id="investmentLabel">Investimento inicial</label>
           <div style="display:flex; gap:6px; align-items:center;">
             <input type="number" id="investment" value="" step="1" min="0" placeholder="0" style="width:90px;">
-            <button type="button" id="stakeIsFreebet" class="freebet-stake-btn" title="Marque se essa aposta está sendo feita usando uma freebet já em mãos (o stake não é devolvido, só o lucro)">🎁 É freebet</button>
+            <button type="button" id="stakeIsFreebet" class="freebet-stake-btn" title="Marque se essa aposta está sendo feita usando uma freebet já em mãos (o stake não é devolvido, só o lucro)">🎁</button>
           </div>
         </div>
         <div class="field">
+          <label>Comissão exchange %</label>
+          <input type="number" id="commission" value="0" step="0.1" min="0" max="20" style="width:90px;">
+        </div>
+      </div>
+
+      <div class="config-row2">
+        <div class="field">
           <label>Casa da múltipla</label>
-          <input type="text" id="casaMultipla" placeholder="Ex: Multibet" style="width:130px;">
+          <input type="text" id="casaMultipla" placeholder="Ex: Betvip" style="width:170px;">
         </div>
         <div class="field">
-          <label>Nº de jogos</label>
-          <select id="numLegs">
+          <label>Etapas</label>
+          <div class="etapas-pill" id="etapasPill">
+            <button data-n="2" class="active">2 Etapas</button>
+            <button data-n="3">3 Etapas</button>
+            <button data-n="4">4 Etapas</button>
+          </div>
+          <select id="numLegs" style="display:none;">
             <option value="2">2 jogos</option>
             <option value="3">3 jogos</option>
             <option value="4">4 jogos</option>
           </select>
         </div>
-        <div class="field">
-          <label>Comissão exchange %</label>
-          <input type="number" id="commission" value="0" step="0.1" min="0" max="20">
-        </div>
-        <div class="checkfield">
-          <input type="checkbox" id="arredondar" checked>
-          <label for="arredondar">Arredondar stakes (R$0,50)</label>
-        </div>
-        <div class="checkfield">
-          <input type="checkbox" id="freebetToggle">
-          <label for="freebetToggle">Bônus / Freebet</label>
+        <div class="config-checks">
+          <div class="checkfield">
+            <input type="checkbox" id="arredondar" checked>
+            <label for="arredondar">Arredondar</label>
+          </div>
+          <div class="checkfield">
+            <input type="checkbox" id="freebetToggle">
+            <label for="freebetToggle">Freebet</label>
+          </div>
+          <div class="checkfield" title="Em breve">
+            <input type="checkbox" disabled>
+            <label style="color:var(--muted);">Bônus / Cashback</label>
+          </div>
+          <div class="checkfield" title="Em breve">
+            <input type="checkbox" disabled>
+            <label style="color:var(--muted);">SuperOdd / Boost</label>
+          </div>
         </div>
       </div>
 
@@ -422,14 +542,9 @@
     <div class="divider-title">Detalhe por etapa</div>
     <div id="etapaDetail" style="display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted);"></div>
 
-    <div class="actions">
-      <button class="btn btn-primary" id="btnSave">Salvar no histórico</button>
-      <button class="btn btn-ghost" id="btnReset">Restaurar</button>
-    </div>
-
     <div class="actions" style="margin-top:8px;">
       <button class="btn btn-ghost" id="btnResumo">📋 Ver resumo</button>
-      <button class="btn" id="btnSendPanel" style="background:var(--blue); color:#fff;">Enviar pro painel</button>
+      <button class="btn btn-primary" id="btnSendSpreadsheet">📊 Enviar para a planilha</button>
     </div>
     <div id="sendStatus" style="font-size:11px; color:var(--muted); margin-top:6px; min-height:14px;"></div>
 
@@ -452,7 +567,7 @@
       <button class="btn btn-ghost" id="btnSaveConn" style="font-size:12px; padding:7px 0;">Salvar conexão</button>
     </div>
 
-    <div class="divider-title">Histórico (últimas 5)</div>
+    <div class="divider-title" id="cofreSection">📂 Cofre de Cálculos (últimos 5)</div>
     <div class="history" id="history"></div>
 
     <div class="footnote">
@@ -521,9 +636,9 @@
     return {
       mode: 'hedge',
       teamA:'', teamB:'',
-      mainLabel:'Vitória Casa', mainOdd: '',
+      mainLabel:'Vitória Casa', mainOdd: '', mainCasa:'',
       out1:{label:'Empate', odd:'', casa:''},
-      out2:{label:'Visitante', odd:'', casa:''},
+      out2:{label:'Vitória Visitante', odd:'', casa:''},
       layOdd: '', layCasa:'',
       locked:false, lockedS1:null, lockedS2:null, lockedX:null
     };
@@ -539,89 +654,100 @@
     renderEtapas();
   }
 
+  function selectOtherLabels(main){
+    const map = {
+      'Vitória Casa': ['Empate','Vitória Visitante'],
+      'Empate': ['Vitória Casa','Vitória Visitante'],
+      'Vitória Visitante': ['Vitória Casa','Empate']
+    };
+    return map[main] || ['Empate','Vitória Visitante'];
+  }
+
   function renderEtapas(){
     const wrap = $('etapas');
     wrap.innerHTML = '';
     state.etapas.forEach((et, i) => {
       const div = document.createElement('div');
       div.className = 'etapa';
+      const locked = et.locked;
       div.innerHTML = `
         <div class="etapa-head">
-          <span class="etapa-label">${LEG_LABELS[i]} ${et.locked?'<span class="lock-badge">🔒 travada</span>':''}</span>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <div class="mode-toggle" style="${et.locked?'opacity:.45; pointer-events:none;':''}">
-              <button data-mode="hedge" class="${et.mode==='hedge'?'active':''}">HEDGE (BOOKIE)</button>
-              <button data-mode="lay" class="${et.mode==='lay'?'active':''}">LAY (EX)</button>
-            </div>
-            <button class="lock-btn ${et.locked?'locked':''}" data-lockbtn title="${et.locked?'Destravar etapa':'Travar etapa (aposta já feita)'}">${et.locked?'🔒':'🔓'}</button>
+          <span class="etapa-label"><span style="width:7px;height:7px;border-radius:50%;background:var(--amber);display:inline-block;margin-right:7px;"></span>${LEG_LABELS[i]} ${locked?'<span class="lock-badge">🔒 travada</span>':''}</span>
+          <div class="etapa-icons">
+            <button class="icon-btn" data-clearbtn title="Limpar etapa">🧹</button>
+            <button class="icon-btn ${locked?'locked':''}" data-lockbtn title="${locked?'Destravar etapa':'Travar etapa (aposta já feita)'}">${locked?'🔒':'🔓'}</button>
           </div>
         </div>
-        <div class="row">
-          <div class="teams">
-            <input type="text" class="teamA" placeholder="Equipa casa" value="${et.teamA}">
-            <span class="x">x</span>
-            <input type="text" class="teamB" placeholder="Equipa fora" value="${et.teamB}">
+        <div class="mode-toggle" style="margin-bottom:14px; ${locked?'opacity:.45; pointer-events:none;':''}">
+          <button data-mode="lay" class="${et.mode==='lay'?'active':''}">LAY</button>
+          <button data-mode="hedge" class="${et.mode==='hedge'?'active':''}">HEDGE</button>
+          <button class="filler-btn" disabled title="Em breve">FILLER</button>
+        </div>
+        <div class="teams" style="margin-bottom:12px;">
+          <input type="text" class="teamA" placeholder="Equipa casa" value="${et.teamA}">
+          <span class="x">x</span>
+          <input type="text" class="teamB" placeholder="Equipa fora" value="${et.teamB}">
+        </div>
+        <select class="mainLabel selection-select" ${locked?'disabled':''}>
+          <option value="Vitória Casa" ${et.mainLabel==='Vitória Casa'?'selected':''}>Vitória Casa</option>
+          <option value="Empate" ${et.mainLabel==='Empate'?'selected':''}>Empate</option>
+          <option value="Vitória Visitante" ${et.mainLabel==='Vitória Visitante'?'selected':''}>Vitória Visitante</option>
+        </select>
+
+        ${et.mode==='hedge' ? `
+        <div class="back-box">
+          <div class="lbl">Back Múltipla</div>
+          <div class="odd-row"><span class="at">@</span><input type="number" step="0.01" class="mainOdd" value="${et.mainOdd}" ${locked?'disabled':''}></div>
+          <input type="text" class="mainCasa casa-entry" placeholder="Casa da Entrada (Ex: Bet365)" value="${et.mainCasa||''}" ${locked?'disabled':''}>
+        </div>
+        <div class="hedge-section-title"><span class="dot"></span>Hedge Odds (Cobertura)</div>
+        <div class="outcomes-hedge">
+          <div class="outcome-card" style="text-align:center;">
+            <label style="display:block; margin-bottom:8px;">ODD 1 <span style="color:var(--text); font-weight:400; text-transform:none;">(${et.out1.label})</span></label>
+            <div class="odd-row" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span style="color:var(--muted); font-size:14px;">@</span>
+              <input type="number" step="0.01" class="out1Odd" value="${et.out1.odd}" style="width:80px; text-align:center; background:transparent; border:none; color:var(--amber); font-family:'JetBrains Mono'; font-size:20px; font-weight:700;" ${locked?'disabled':''}>
+            </div>
+            <input type="text" class="out1Casa casa-entry" placeholder="Casa da Entrada" value="${et.out1.casa||''}" style="margin-top:8px;" ${locked?'disabled':''}>
+            ${locked
+              ? `<div class="stake" data-stakeA style="border:1px solid var(--green); border-radius:5px; padding:5px 8px; margin-top:8px;">stake: ${et.lockedS1!=null?('R$ '+et.lockedS1.toFixed(2).replace('.',',')):'—'}</div>`
+              : `<div class="stake" data-stakeA style="margin-top:8px;">stake: —</div>`
+            }
           </div>
-          <div class="field">
-            <label>Seleção múltipla</label>
-            <input type="text" class="mainLabel" style="width:140px;" value="${et.mainLabel}">
-          </div>
-          <div class="field">
-            <label>Odd (back múltipla)</label>
-            <input type="number" step="0.01" class="mainOdd" value="${et.mainOdd}" ${et.locked?'disabled':''}>
+          <div class="outcome-card" style="text-align:center;">
+            <label style="display:block; margin-bottom:8px;">ODD 2 <span style="color:var(--text); font-weight:400; text-transform:none;">(${et.out2.label})</span></label>
+            <div class="odd-row" style="display:flex; align-items:center; justify-content:center; gap:6px;">
+              <span style="color:var(--muted); font-size:14px;">@</span>
+              <input type="number" step="0.01" class="out2Odd" value="${et.out2.odd}" style="width:80px; text-align:center; background:transparent; border:none; color:var(--amber); font-family:'JetBrains Mono'; font-size:20px; font-weight:700;" ${locked?'disabled':''}>
+            </div>
+            <input type="text" class="out2Casa casa-entry" placeholder="Casa da Entrada" value="${et.out2.casa||''}" style="margin-top:8px;" ${locked?'disabled':''}>
+            ${locked
+              ? `<div class="stake" data-stakeB style="border:1px solid var(--green); border-radius:5px; padding:5px 8px; margin-top:8px;">stake: ${et.lockedS2!=null?('R$ '+et.lockedS2.toFixed(2).replace('.',',')):'—'}</div>`
+              : `<div class="stake" data-stakeB style="margin-top:8px;">stake: —</div>`
+            }
           </div>
         </div>
-        <div class="hedge-block" style="${et.mode==='hedge'?'':'display:none'}">
-          <div class="outcomes-hedge">
-            <div class="outcome-card">
-              <label>Cobertura A — rótulo / odd</label>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input type="text" class="out1Label" value="${et.out1.label}" style="font-size:12px; font-weight:400; flex:1;" ${et.locked?'disabled':''}>
-                <input type="number" step="0.01" class="out1Odd" value="${et.out1.odd}" style="width:70px; text-align:right;" ${et.locked?'disabled':''}>
-              </div>
-              <input type="text" class="out1Casa" placeholder="Casa (ex: Bet365)" value="${et.out1.casa||''}" style="width:100%; margin-top:6px; background:var(--panel); border:1px solid var(--line); border-radius:5px; color:var(--muted); font-family:'Inter'; padding:5px 8px; font-size:11.5px;" ${et.locked?'disabled':''}>
-              ${et.locked
-                ? `<div class="stake" data-stakeA style="border:1px solid var(--green); border-radius:5px; padding:5px 8px; margin-top:6px;">stake: ${et.lockedS1!=null?('R$ '+et.lockedS1.toFixed(2).replace('.',',')):'—'}</div>`
-                : `<div class="stake" data-stakeA>stake: —</div>`
-              }
-            </div>
-            <div class="outcome-card">
-              <label>Cobertura B — rótulo / odd</label>
-              <div style="display:flex; gap:8px; align-items:center;">
-                <input type="text" class="out2Label" value="${et.out2.label}" style="font-size:12px; font-weight:400; flex:1;" ${et.locked?'disabled':''}>
-                <input type="number" step="0.01" class="out2Odd" value="${et.out2.odd}" style="width:70px; text-align:right;" ${et.locked?'disabled':''}>
-              </div>
-              <input type="text" class="out2Casa" placeholder="Casa (ex: Apostabet)" value="${et.out2.casa||''}" style="width:100%; margin-top:6px; background:var(--panel); border:1px solid var(--line); border-radius:5px; color:var(--muted); font-family:'Inter'; padding:5px 8px; font-size:11.5px;" ${et.locked?'disabled':''}>
-              ${et.locked
-                ? `<div class="stake" data-stakeB style="border:1px solid var(--green); border-radius:5px; padding:5px 8px; margin-top:6px;">stake: ${et.lockedS2!=null?('R$ '+et.lockedS2.toFixed(2).replace('.',',')):'—'}</div>`
-                : `<div class="stake" data-stakeB>stake: —</div>`
-              }
-            </div>
+        ` : `
+        <div class="lay-two">
+          <div class="lay-box">
+            <div class="lbl">Back Múltipla</div>
+            <div class="odd-row"><span class="at">@</span><input type="number" step="0.01" class="mainOdd" value="${et.mainOdd}" ${locked?'disabled':''}></div>
+            <input type="text" class="mainCasa casa-entry" placeholder="Casa da Entrada" value="${et.mainCasa||''}" ${locked?'disabled':''}>
+          </div>
+          <div class="lay-box cover">
+            <div class="lbl">Lay Cobertura</div>
+            <div class="odd-row"><span class="at">@</span><input type="number" step="0.01" class="layOdd" value="${et.layOdd}" ${locked?'disabled':''}></div>
+            <input type="text" class="layCasa casa-entry" placeholder="Ex: Betfair" value="${et.layCasa||''}" ${locked?'disabled':''}>
+            ${locked
+              ? `<div class="stake" style="border:1px solid var(--green); border-radius:5px; padding:5px 8px; margin-top:8px;">aposta: ${et.lockedX!=null?('R$ '+et.lockedX.toFixed(2).replace('.',',')):'—'}</div>`
+              : `<div class="stake" data-laystake style="margin-top:8px;">aposta: —</div>`
+            }
+            <div class="stake" data-layrisk style="margin-top:4px; color:var(--red);">risco: —</div>
           </div>
         </div>
-        <div class="lay-block" style="${et.mode==='lay'?'':'display:none'}">
-          <div class="lay-card">
-            <div class="field">
-              <label>Casa / Exchange</label>
-              <input type="text" class="layCasa" placeholder="Ex: Betfair" value="${et.layCasa||''}" style="width:130px;" ${et.locked?'disabled':''}>
-            </div>
-            <div class="field">
-              <label>Odd lay (contra seleção)</label>
-              <input type="number" step="0.01" class="layOdd" value="${et.layOdd}" ${et.locked?'disabled':''}>
-            </div>
-            <div class="field">
-              <label>Aposta (stake matched)</label>
-              ${et.locked
-                ? `<div class="num" style="padding:8px; font-weight:600; color:var(--green); border:1px solid var(--green); border-radius:5px;">${et.lockedX!=null?('R$ '+et.lockedX.toFixed(2).replace('.',',')):'—'}</div>`
-                : `<div class="num" data-laystake style="padding:8px 0; font-weight:600; color:var(--green);">—</div>`
-              }
-            </div>
-            <div class="field">
-              <label>Risco (liability)</label>
-              <div class="num" data-layrisk style="padding:8px 0; font-weight:600; color:var(--red);">—</div>
-            </div>
-          </div>
-        </div>
+        `}
+
+        <div class="etapa-protect"><input type="checkbox" disabled> Proteção / Cashback (Nesta Etapa)</div>
         <div class="etapa-total">
           <span>Total investido nesta etapa</span>
           <span class="val" data-etapatotal>—</span>
@@ -629,9 +755,14 @@
       `;
       wrap.appendChild(div);
 
-      div.querySelectorAll('.mode-toggle button').forEach(btn=>{
+      div.querySelectorAll('.mode-toggle button[data-mode]').forEach(btn=>{
         btn.onclick = ()=>{ if(et.locked) return; et.mode = btn.dataset.mode; renderEtapas(); compute(); };
       });
+      div.querySelector('[data-clearbtn]').onclick = ()=>{
+        if(et.locked) return;
+        Object.assign(et, defaultEtapa(i), {mode: et.mode});
+        renderEtapas(); compute();
+      };
       div.querySelector('[data-lockbtn]').onclick = ()=>{
         if(!et.locked){
           const d = lastDetail[i];
@@ -649,12 +780,18 @@
       };
       div.querySelector('.teamA').oninput = e=>{ et.teamA=e.target.value; };
       div.querySelector('.teamB').oninput = e=>{ et.teamB=e.target.value; };
-      div.querySelector('.mainLabel').oninput = e=>{ et.mainLabel=e.target.value; };
+      div.querySelector('.mainLabel').onchange = e=>{
+        et.mainLabel=e.target.value;
+        const [l1,l2] = selectOtherLabels(et.mainLabel);
+        et.out1.label = l1; et.out2.label = l2;
+        renderEtapas();
+        compute();
+      };
       div.querySelector('.mainOdd').oninput = e=>{ et.mainOdd=parseFloat(e.target.value)||0; compute(); };
+      const mainCasaEl = div.querySelector('.mainCasa');
+      if(mainCasaEl) mainCasaEl.oninput = e=>{ et.mainCasa=e.target.value; };
 
       if(et.mode==='hedge'){
-        div.querySelector('.out1Label').oninput = e=>{ et.out1.label=e.target.value; };
-        div.querySelector('.out2Label').oninput = e=>{ et.out2.label=e.target.value; };
         div.querySelector('.out1Odd').oninput = e=>{ et.out1.odd=parseFloat(e.target.value)||0; compute(); };
         div.querySelector('.out2Odd').oninput = e=>{ et.out2.odd=parseFloat(e.target.value)||0; compute(); };
         div.querySelector('.out1Casa').oninput = e=>{ et.out1.casa=e.target.value; };
@@ -812,8 +949,8 @@
       } else {
         const elS = div.querySelector('[data-laystake]');
         const elR = div.querySelector('[data-layrisk]');
-        if(elS) elS.textContent = fmt(d.T);
-        if(elR) elR.textContent = fmt(d.liability);
+        if(elS) elS.textContent = 'aposta: ' + fmt(d.T);
+        if(elR) elR.textContent = 'risco: ' + fmt(d.liability);
       }
       div.querySelector('[data-etapatotal]').textContent = fmt(d.T);
     });
@@ -840,6 +977,7 @@
 
   function renderHistory(){
     const arr = loadHistory();
+    if($('cofreCount')) $('cofreCount').textContent = arr.length;
     const wrap = $('history');
     if(arr.length===0){ wrap.innerHTML = '<div class="history-empty">Nenhuma operação salva ainda</div>'; return; }
     wrap.innerHTML = '';
@@ -865,6 +1003,7 @@
     $('strategyName').value = item.name||'';
     $('investment').value = item.investment;
     $('numLegs').value = item.legs;
+    document.querySelectorAll('#etapasPill button').forEach(b=>b.classList.toggle('active', parseInt(b.dataset.n)===item.legs));
     $('commission').value = item.commission;
     $('freebetToggle').checked = item.freebetOn;
     $('freebetBox').classList.toggle('show', item.freebetOn);
@@ -1059,12 +1198,121 @@
     $('resumoOverlay').classList.add('show');
   }
 
+  $('btnSendSpreadsheet').onclick = ()=>{
+    const statusEl = $('sendStatus');
+    const r = compute();
+
+    if(!r || !r.detail || !r.detail.length || !(r.S > 0) || !(r.oddMultipla > 0)){
+      statusEl.textContent = 'Preencha a operação antes de enviar.';
+      statusEl.style.color = 'var(--red)';
+      return;
+    }
+
+    const nome = ($('strategyName').value || '').trim() || 'Operação 1';
+    const now = new Date();
+    const data = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,10);
+    const hora = now.toTimeString().slice(0,5);
+
+    const pernas = state.etapas.map((et, i)=>{
+      const d = r.detail[i];
+      const evento = (et.teamA || et.teamB) ? ((et.teamA || '') + ' x ' + (et.teamB || '')) : nome;
+      const base = {
+        perna_num: i + 1,
+        evento,
+        selecao_multipla: et.mainLabel || null,
+        status_final: 'pendente',
+        usou_freebet: !!$('freebetToggle').checked
+      };
+
+      if(et.mode === 'hedge'){
+        return [
+          {...base, sub:'A', plataforma: et.out1.casa || null, rotulo: et.out1.label || null, odd:Number((et.out1.odd || 0).toFixed(2)), acao:'back', stake:d ? Number(d.s1.toFixed(2)) : 0, comissao:0},
+          {...base, sub:'B', plataforma: et.out2.casa || null, rotulo: et.out2.label || null, odd:Number((et.out2.odd || 0).toFixed(2)), acao:'back', stake:d ? Number(d.s2.toFixed(2)) : 0, comissao:0}
+        ];
+      }
+
+      return [{
+        ...base,
+        sub:null,
+        plataforma: et.layCasa || null,
+        rotulo: et.mainLabel || null,
+        odd:Number((et.layOdd || 0).toFixed(2)),
+        acao:'lay',
+        stake:d ? Number(d.T.toFixed(2)) : 0,
+        comissao:Number((parseFloat($('commission').value) || 0).toFixed(2))
+      }];
+    }).flat();
+
+    const importedOperation = {
+      data_operacao: data,
+      casa: $('casaMultipla').value || null,
+      nome,
+      investimento: Number(r.S.toFixed(2)),
+      status: 'pendente',
+      detalhe: {
+        hora_operacao: hora,
+        pernas,
+        multipla: {
+          odd: Number(r.oddMultipla.toFixed(2)),
+          status_final: 'pendente',
+          freebet: !!$('freebetToggle').checked,
+          gera_freebet: false,
+          freebet_usada_confirmada: false,
+          calculadora: 'multipla_vip',
+          nome_operacao: nome,
+          casa_multipla: $('casaMultipla').value || null,
+          investimento:Number(r.S.toFixed(2)),
+          resultado_equilibrado:Number(r.worst.toFixed(2)),
+          lucro_se_multipla:Number(r.profitWin.toFixed(2)),
+          lucro_pior_caso:Number(r.worst.toFixed(2)),
+          investimento_total:Number(r.totalInvestido.toFixed(2)),
+          comissao:Number((parseFloat($('commission').value) || 0).toFixed(2)),
+          arredondamento:$('arredondar').checked ? '0.50' : 'none',
+          slider:Number($('balanceSlider').value),
+          cenarios: r.detail.map((d,idx)=>{
+            if(d.mode === 'hedge'){
+              return [
+                {cenario:'Etapa '+(idx+1)+' — '+d.l.out1.label, lucro:Number(d.profit1.toFixed(2))},
+                {cenario:'Etapa '+(idx+1)+' — '+d.l.out2.label, lucro:Number(d.profit2.toFixed(2))}
+              ];
+            }
+            return {cenario:'Etapa '+(idx+1)+' — '+d.l.mainLabel+' perde (LAY ganha)', lucro:Number(d.profit.toFixed(2))};
+          }).flat()
+        }
+      }
+    };
+
+    try{
+      localStorage.setItem('duploGreenCalculatorImport', JSON.stringify(importedOperation));
+      const target = 'https://arbplanner.github.io/Painel-arb/?calculatorImport=1';
+      const win = window.open(target, '_blank');
+      if(!win) throw new Error('O navegador bloqueou a abertura do painel.');
+      statusEl.textContent = 'Operação enviada para a planilha. Confira a janela e clique em Salvar.';
+      statusEl.style.color = 'var(--green)';
+    }catch(e){
+      console.error(e);
+      statusEl.textContent = 'Não foi possível enviar: ' + (e.message || e);
+      statusEl.style.color = 'var(--red)';
+    }
+  };
+
   $('btnResumo').onclick = openResumo;
+  $('btnCofre').onclick = ()=>{ $('cofreSection').scrollIntoView({behavior:'smooth', block:'start'}); };
   $('resumoClose').onclick = ()=> $('resumoOverlay').classList.remove('show');
   $('resumoOverlay').onclick = (e)=>{ if(e.target.id==='resumoOverlay') $('resumoOverlay').classList.remove('show'); };
   $('resumoObs').oninput = e=>{ try{ localStorage.setItem(RESUMO_OBS_KEY, e.target.value); }catch(err){} };
 
   $('numLegs').onchange = e=> { initEtapas(parseInt(e.target.value)); compute(); };
+  document.querySelectorAll('#etapasPill button').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll('#etapasPill button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const n = parseInt(btn.dataset.n);
+      $('numLegs').value = n;
+      initEtapas(n);
+      compute();
+    };
+  });
   $('stakeIsFreebet').onclick = ()=>{
     const btn = $('stakeIsFreebet');
     btn.classList.toggle('active');
@@ -1101,6 +1349,7 @@
     $('stakeIsFreebet').classList.remove('active');
     $('investmentLabel').textContent = 'Investimento (múltipla)';
     $('numLegs').value = '2';
+    document.querySelectorAll('#etapasPill button').forEach(b=>b.classList.toggle('active', b.dataset.n==='2'));
     $('commission').value = 0;
     $('arredondar').checked = true;
     $('freebetToggle').checked = false;
