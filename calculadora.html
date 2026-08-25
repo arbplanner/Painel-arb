@@ -1198,10 +1198,19 @@
     $('resumoOverlay').classList.add('show');
   }
 
-  $('btnSendSpreadsheet').onclick = ()=>{
+  $('btnSendSpreadsheet').onclick = async ()=>{
     const statusEl = $('sendStatus');
-    const r = compute();
+    const client = getSupabaseClient();
 
+    if(!client){
+      statusEl.textContent = 'Configure a conexão com o painel primeiro.';
+      statusEl.style.color = 'var(--amber)';
+      $('connBox').style.display = 'flex';
+      $('connArrow').textContent = '▾';
+      return;
+    }
+
+    const r = compute();
     if(!r || !r.detail || !r.detail.length || !(r.S > 0) || !(r.oddMultipla > 0)){
       statusEl.textContent = 'Preencha a operação antes de enviar.';
       statusEl.style.color = 'var(--red)';
@@ -1212,6 +1221,9 @@
     const now = new Date();
     const data = new Date(now.getTime() - now.getTimezoneOffset()*60000).toISOString().slice(0,10);
     const hora = now.toTimeString().slice(0,5);
+    const freebetOn = $('freebetToggle').checked;
+    const commissionGlobal = parseFloat($('commission').value)||0;
+    const activeBankroll = localStorage.getItem('duploGreenBankrollAtivo') || 'Teste';
 
     const pernas = state.etapas.map((et, i)=>{
       const d = r.detail[i];
@@ -1221,7 +1233,7 @@
         evento,
         selecao_multipla: et.mainLabel || null,
         status_final: 'pendente',
-        usou_freebet: !!$('freebetToggle').checked
+        usou_freebet: freebetOn
       };
 
       if(et.mode === 'hedge'){
@@ -1239,59 +1251,73 @@
         odd:Number((et.layOdd || 0).toFixed(2)),
         acao:'lay',
         stake:d ? Number(d.T.toFixed(2)) : 0,
-        comissao:Number((parseFloat($('commission').value) || 0).toFixed(2))
+        comissao:Number(commissionGlobal.toFixed(2))
       }];
     }).flat();
 
-    const importedOperation = {
+    const detalhe = {
+      hora_operacao: hora,
+      pernas,
+      multipla: {
+        odd: Number(r.oddMultipla.toFixed(2)),
+        status_final: 'pendente',
+        freebet: freebetOn,
+        gera_freebet: false,
+        freebet_usada_confirmada: false,
+        calculadora: 'multipla_vip',
+        nome_operacao: nome,
+        casa_multipla: $('casaMultipla').value || null,
+        investimento: Number(r.S.toFixed(2)),
+        resultado_equilibrado: Number(r.worst.toFixed(2)),
+        lucro_se_multipla: Number(r.profitWin.toFixed(2)),
+        lucro_pior_caso: Number(r.worst.toFixed(2)),
+        investimento_total: Number(r.totalInvestido.toFixed(2)),
+        comissao: Number(commissionGlobal.toFixed(2)),
+        arredondamento: $('arredondar').checked ? '0.50' : 'none',
+        slider: Number($('balanceSlider').value),
+        cenarios: r.detail.map((d,idx)=>{
+          if(d.mode === 'hedge'){
+            return [
+              {cenario:'Etapa '+(idx+1)+' — '+d.l.out1.label, lucro:Number(d.profit1.toFixed(2))},
+              {cenario:'Etapa '+(idx+1)+' — '+d.l.out2.label, lucro:Number(d.profit2.toFixed(2))}
+            ];
+          }
+          return {cenario:'Etapa '+(idx+1)+' — '+d.l.mainLabel+' perde (LAY ganha)', lucro:Number(d.profit.toFixed(2))};
+        }).flat()
+      }
+    };
+
+    const payload = {
       data_operacao: data,
       casa: $('casaMultipla').value || null,
       nome,
       investimento: Number(r.S.toFixed(2)),
       status: 'pendente',
-      detalhe: {
-        hora_operacao: hora,
-        pernas,
-        multipla: {
-          odd: Number(r.oddMultipla.toFixed(2)),
-          status_final: 'pendente',
-          freebet: !!$('freebetToggle').checked,
-          gera_freebet: false,
-          freebet_usada_confirmada: false,
-          calculadora: 'multipla_vip',
-          nome_operacao: nome,
-          casa_multipla: $('casaMultipla').value || null,
-          investimento:Number(r.S.toFixed(2)),
-          resultado_equilibrado:Number(r.worst.toFixed(2)),
-          lucro_se_multipla:Number(r.profitWin.toFixed(2)),
-          lucro_pior_caso:Number(r.worst.toFixed(2)),
-          investimento_total:Number(r.totalInvestido.toFixed(2)),
-          comissao:Number((parseFloat($('commission').value) || 0).toFixed(2)),
-          arredondamento:$('arredondar').checked ? '0.50' : 'none',
-          slider:Number($('balanceSlider').value),
-          cenarios: r.detail.map((d,idx)=>{
-            if(d.mode === 'hedge'){
-              return [
-                {cenario:'Etapa '+(idx+1)+' — '+d.l.out1.label, lucro:Number(d.profit1.toFixed(2))},
-                {cenario:'Etapa '+(idx+1)+' — '+d.l.out2.label, lucro:Number(d.profit2.toFixed(2))}
-              ];
-            }
-            return {cenario:'Etapa '+(idx+1)+' — '+d.l.mainLabel+' perde (LAY ganha)', lucro:Number(d.profit.toFixed(2))};
-          }).flat()
-        }
-      }
+      bankroll: activeBankroll,
+      detalhe
     };
 
+    statusEl.textContent = 'Enviando...';
+    statusEl.style.color = 'var(--muted)';
+
     try{
-      localStorage.setItem('duploGreenCalculatorImport', JSON.stringify(importedOperation));
-      const target = 'https://arbplanner.github.io/Painel-arb/?calculatorImport=1';
-      const win = window.open(target, '_blank');
-      if(!win) throw new Error('O navegador bloqueou a abertura do painel.');
-      statusEl.textContent = 'Operação enviada para a planilha. Confira a janela e clique em Salvar.';
+      const { data: inserted, error } = await client.from('operacoes').insert(payload).select('id').single();
+      if(error) throw error;
+      if(!inserted || !inserted.id) throw new Error('O Supabase não retornou o ID da operação.');
+
+      statusEl.innerHTML = 'Operação enviada para a planilha ✓';
       statusEl.style.color = 'var(--green)';
+
+      const c = loadConn();
+      const painelUrl = (c.painelUrl || localStorage.getItem('duploGreenPainelUrl') || 'https://arbplanner.github.io/Painel-arb/').trim();
+      const editUrl = painelUrl.replace(/\/?$/, '/') + '?edit=' + encodeURIComponent(inserted.id);
+      const tab = window.open(editUrl, '_blank');
+      if(!tab){
+        statusEl.innerHTML += ' <span style="color:var(--amber);font-size:11px">O navegador bloqueou a aba de edição.</span>';
+      }
     }catch(e){
       console.error(e);
-      statusEl.textContent = 'Não foi possível enviar: ' + (e.message || e);
+      statusEl.textContent = 'Erro ao salvar: ' + (e.message || e);
       statusEl.style.color = 'var(--red)';
     }
   };
