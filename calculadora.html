@@ -83,7 +83,6 @@
   }
   .panel-title .dot{width:6px; height:6px; border-radius:50%; background:var(--green);}
 
-  /* Global config bar */
   .config-bar{
     display:flex; flex-wrap:wrap; gap:18px; margin-bottom:20px;
   }
@@ -104,6 +103,12 @@
     background:var(--panel-2); border:1px solid var(--line); border-radius:7px;
     color:var(--text); padding:8px 10px; font-size:13px; font-family:'Inter';
   }
+  .freebet-stake-btn{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--muted);
+    font-size:11px; font-weight:600; padding:8px 10px; border-radius:7px; cursor:pointer; white-space:nowrap;
+  }
+  .freebet-stake-btn.active{background:var(--amber-dim); border-color:var(--amber); color:var(--amber);}
+  .freebet-stake-btn:hover{filter:brightness(1.15);}
 
   .freebet-box{
     display:none;
@@ -117,7 +122,6 @@
   .freebet-box.show{display:flex;}
   .freebet-box .field label{color:#e0b361;}
 
-  /* Etapas */
   .etapas{display:flex; flex-direction:column; gap:16px;}
   .etapa{
     background:var(--panel);
@@ -185,12 +189,6 @@
   }
   .etapa-total .val{color:var(--text); font-family:'JetBrains Mono'; font-weight:600;}
 
-  .add-etapa-note{
-    font-size:11.5px; color:var(--muted); text-align:center; padding:6px 0;
-    border:1px dashed var(--line); border-radius:8px;
-  }
-
-  /* Results panel */
   .results{position:sticky; top:20px;}
   .balance-row{
     display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;
@@ -252,6 +250,81 @@
   .history-empty{color:var(--muted); font-size:12px; text-align:center; padding:10px 0;}
 
   .footnote{font-size:11px; color:var(--muted); line-height:1.5; margin-top:16px;}
+
+  .resumo-overlay{
+    display:none; position:fixed; inset:0; background:rgba(4,6,9,0.75);
+    z-index:999; align-items:flex-start; justify-content:center; padding:40px 16px; overflow-y:auto;
+  }
+  .resumo-overlay.show{display:flex;}
+  .resumo-modal{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    max-width:640px; width:100%; padding:0; overflow:hidden;
+  }
+  .resumo-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:16px 20px; border-bottom:1px solid var(--line);
+  }
+  .resumo-head-title{display:flex; align-items:center; gap:8px; font-family:'Space Grotesk'; font-weight:700; font-size:15px;}
+  .resumo-close{background:transparent; border:none; color:var(--muted); font-size:20px; cursor:pointer; line-height:1;}
+  .resumo-close:hover{color:var(--text);}
+  .resumo-badge{
+    display:inline-block; background:var(--amber-dim); color:var(--amber); font-size:10px; font-weight:700;
+    letter-spacing:.05em; padding:4px 10px; border-radius:20px; margin:14px 20px 0;
+  }
+  .resumo-title2{font-family:'Space Grotesk'; font-weight:700; font-size:18px; text-align:center; margin:8px 20px 16px;}
+  .resumo-body{padding:0 20px 20px;}
+  .resumo-grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
+  @media (max-width:520px){ .resumo-grid2{grid-template-columns:1fr;} }
+  .resumo-box{background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px;}
+  .resumo-box-title{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; margin-bottom:10px; display:flex; align-items:center; gap:6px;}
+  .resumo-line{display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:6px;}
+  .resumo-line .k{color:var(--muted);}
+  .resumo-line .v{font-family:'JetBrains Mono'; font-weight:600;}
+  .resumo-proj{display:flex; flex-direction:column; gap:8px;}
+  .resumo-proj-row{display:flex; justify-content:space-between; align-items:center;}
+  .resumo-proj-row .lbl{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+  .resumo-proj-row .amt{font-family:'JetBrains Mono'; font-weight:700; font-size:15px;}
+  .resumo-roi{
+    display:inline-block; background:var(--green-dim); color:var(--green); font-size:10.5px; font-weight:700;
+    padding:2px 9px; border-radius:20px; margin-left:6px;
+  }
+  .resumo-warn{
+    background:var(--amber-dim); border:1px solid rgba(242,169,60,.35); color:#e0b361;
+    font-size:11.5px; text-align:center; padding:9px 14px; border-radius:8px; margin-bottom:16px;
+  }
+  .resumo-etapa{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px;
+  }
+  .resumo-etapa-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; flex-wrap:wrap; gap:6px;}
+  .resumo-etapa-title{font-weight:700; font-size:13px;}
+  .resumo-etapa-teams{color:var(--muted); font-size:11.5px;}
+  .resumo-etapa-mode{
+    font-size:10px; font-weight:700; letter-spacing:.04em; padding:3px 9px; border-radius:20px;
+    background:var(--blue); color:#fff;
+  }
+  .resumo-etapa-mode.lay{background:var(--red);}
+  .resumo-entries{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:8px;}
+  .resumo-entry{flex:1; min-width:180px; font-size:12px;}
+  .resumo-entry .who{color:var(--green); font-weight:600;}
+  .resumo-entry .amt{font-family:'JetBrains Mono'; font-weight:700; margin-left:4px;}
+  .resumo-etapa-foot{
+    display:flex; justify-content:flex-end; font-size:11.5px; color:var(--muted);
+    border-top:1px solid var(--line); padding-top:8px; margin-top:4px;
+  }
+  .resumo-etapa-foot .v{font-family:'JetBrains Mono'; font-weight:700; color:var(--text); margin-left:6px;}
+  .resumo-obs{margin-bottom:16px;}
+  .resumo-obs label{font-size:10.5px; text-transform:uppercase; color:var(--muted); font-weight:600; letter-spacing:.05em; display:block; margin-bottom:6px;}
+  .resumo-obs textarea{
+    width:100%; min-height:52px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
+    color:var(--text); padding:9px 11px; font-family:'Inter'; font-size:12.5px; resize:vertical;
+  }
+  .resumo-obs textarea:focus{outline:none; border-color:var(--amber);}
+  .resumo-bonus{
+    background:var(--amber-dim); border:1px solid rgba(242,169,60,.35); border-radius:8px;
+    padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;
+  }
+  .resumo-bonus .lbl{font-size:12px; font-weight:600; color:#e0b361;}
+  .resumo-bonus .v{font-family:'JetBrains Mono'; font-weight:700; color:var(--amber);}
 </style>
 </head>
 <body>
@@ -266,13 +339,15 @@
 
 <div class="layout">
   <div>
-    <!-- Config global -->
     <div class="panel">
       <div class="panel-title"><span class="dot"></span> Aposta principal</div>
       <div class="config-bar">
         <div class="field">
-          <label>Investimento (múltipla)</label>
-          <input type="number" id="investment" value="" step="1" min="0" placeholder="0">
+          <label id="investmentLabel">Investimento (múltipla)</label>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <input type="number" id="investment" value="" step="1" min="0" placeholder="0" style="width:90px;">
+            <button type="button" id="stakeIsFreebet" class="freebet-stake-btn" title="Marque se essa aposta está sendo feita usando uma freebet já em mãos (o stake não é devolvido, só o lucro)">🎁 É freebet</button>
+          </div>
         </div>
         <div class="field">
           <label>Casa da múltipla</label>
@@ -321,7 +396,6 @@
     <div class="etapas" id="etapas"></div>
   </div>
 
-  <!-- Painel de resultados -->
   <div class="panel results">
     <div class="panel-title"><span class="dot"></span> Resultado da operação</div>
 
@@ -354,6 +428,7 @@
     </div>
 
     <div class="actions" style="margin-top:8px;">
+      <button class="btn btn-ghost" id="btnResumo">📋 Ver resumo</button>
       <button class="btn" id="btnSendPanel" style="background:var(--blue); color:#fff;">Enviar pro painel</button>
     </div>
     <div id="sendStatus" style="font-size:11px; color:var(--muted); margin-top:6px; min-height:14px;"></div>
@@ -386,19 +461,60 @@
   </div>
 </div>
 
+<div class="resumo-overlay" id="resumoOverlay">
+  <div class="resumo-modal">
+    <div class="resumo-head">
+      <div class="resumo-head-title">📋 Resumo da Estratégia</div>
+      <button class="resumo-close" id="resumoClose">✕</button>
+    </div>
+    <div style="text-align:center;">
+      <span class="resumo-badge">🟢 DUPLO GREEN — MÚLTIPLAS COM COBERTURA</span>
+    </div>
+    <div class="resumo-title2" id="resumoTitulo">—</div>
+    <div class="resumo-body">
+      <div class="resumo-grid2">
+        <div class="resumo-box">
+          <div class="resumo-box-title">🔵 Aposta principal</div>
+          <div class="resumo-line"><span class="k">Casa</span><span class="v" id="rCasa">—</span></div>
+          <div class="resumo-line"><span class="k">Valor</span><span class="v" id="rValor">—</span></div>
+          <div class="resumo-line"><span class="k">Odd total</span><span class="v" id="rOddTotal">—</span></div>
+          <div class="resumo-line"><span class="k">Tipo</span><span class="v" id="rTipo">—</span></div>
+        </div>
+        <div class="resumo-box">
+          <div class="resumo-box-title">🟢 Resultados projetados</div>
+          <div class="resumo-proj">
+            <div class="resumo-proj-row"><span class="lbl">Se múltipla vencer</span><span class="amt" id="rWin">—</span></div>
+            <div class="resumo-proj-row"><span class="lbl">Se cobertura vencer</span><span class="amt" id="rWorst">—</span></div>
+            <div class="resumo-proj-row"><span class="lbl">ROI</span><span class="amt"><span class="resumo-roi" id="rRoi">—</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="resumo-warn">⚠ A cobertura de cada etapa seguinte só deve ser feita se a anterior for vencedora na múltipla.</div>
+
+      <div id="resumoEtapas"></div>
+
+      <div class="resumo-obs">
+        <label>Observações</label>
+        <textarea id="resumoObs" placeholder="Anotações sobre esta operação..."></textarea>
+      </div>
+
+      <div class="resumo-bonus" id="resumoBonusBox" style="display:none;">
+        <span class="lbl">🎁 Bônus / Freebet (se perder)</span>
+        <span class="v" id="rBonus">—</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const $ = id => document.getElementById(id);
   const fmt = n => (n<0?'-':'') + 'R$ ' + Math.abs(n).toFixed(2).replace('.', ',');
 
   const LEG_LABELS = ['Etapa 01','Etapa 02','Etapa 03','Etapa 04'];
-  const OUTCOME_PRESETS = [
-    ['Casa','Empate'], ['Casa','Visitante'], ['Empate','Visitante']
-  ];
 
-  let state = {
-    etapas: [] // {mode:'hedge'|'lay', teamA, teamB, mainOdd, mainLabel, out1:{label,odd}, out2:{label,odd}, layOdd}
-  };
+  let state = { etapas: [] };
   let lastDetail = [];
 
   function defaultEtapa(i){
@@ -513,13 +629,11 @@
       `;
       wrap.appendChild(div);
 
-      // bindings
       div.querySelectorAll('.mode-toggle button').forEach(btn=>{
         btn.onclick = ()=>{ if(et.locked) return; et.mode = btn.dataset.mode; renderEtapas(); compute(); };
       });
       div.querySelector('[data-lockbtn]').onclick = ()=>{
         if(!et.locked){
-          // travando: captura o último valor calculado como "stake real" inicial
           const d = lastDetail[i];
           if(d){
             if(et.mode==='hedge'){ et.lockedS1 = d.s1; et.lockedS2 = d.s2; }
@@ -556,7 +670,6 @@
     return $('arredondar').checked ? Math.round(x*2)/2 : x;
   }
 
-  // Core solver -----------------------------------------------------
   function compute(){
     const S = parseFloat($('investment').value)||0;
     const commission = (parseFloat($('commission').value)||0)/100;
@@ -564,11 +677,12 @@
     const freebetNominal = parseFloat($('freebetNominal').value)||0;
     const freebetTargetPct = (parseFloat($('freebetTarget').value)||0)/100;
     const freebetValue = freebetOn ? freebetNominal*freebetTargetPct : 0;
+    const stakeIsFreebet = $('stakeIsFreebet').classList.contains('active');
+    const sunkStake = stakeIsFreebet ? 0 : S;
 
     const legs = state.etapas;
     const oddMultipla = legs.reduce((a,l)=>a*(l.mainOdd||0),1);
 
-    // d_i for hedge etapas (sum of implied inverse odds of the two covering outcomes)
     const info = legs.map(l=>{
       if(l.mode==='hedge'){
         const d = (l.out1.odd>0?1/l.out1.odd:0) + (l.out2.odd>0?1/l.out2.odd:0);
@@ -578,16 +692,13 @@
       }
     });
 
-    // Solve equalized target profit P via binary search:
-    // profitWin(P) must equal P, where T_i derived sequentially from P.
     function solveForP(P){
-      let cumulative = S;
+      let cumulative = sunkStake;
       const Ts = [];
       for(let i=0;i<info.length;i++){
         const inf = info[i];
         const et = legs[i];
         if(et.locked){
-          // etapa travada: stake fixo, não depende de P
           if(inf.mode==='hedge'){
             const T = (et.lockedS1||0) + (et.lockedS2||0);
             Ts.push({T});
@@ -601,11 +712,11 @@
           continue;
         }
         if(inf.mode==='hedge'){
-          const denom = (1/inf.d) - 1; // R_i/T_i - 1
+          const denom = (1/inf.d) - 1;
           let T = denom>0 ? (P + cumulative - freebetValue)/denom : 0;
           if(T<0) T=0;
           Ts.push({T});
-          cumulative += T; // full stake lost if this leg's main selection wins
+          cumulative += T;
         } else {
           const denom = (1-commission);
           let X = denom>0 ? (P + cumulative - freebetValue)/denom : 0;
@@ -620,7 +731,6 @@
       return {profitWin, Ts};
     }
 
-    // binary search P so that profitWin(P) ~= P
     let lo=-S*5-1000, hi=S*10+5000, P=0, Ts=[];
     for(let iter=0; iter<60; iter++){
       P = (lo+hi)/2;
@@ -628,21 +738,17 @@
       if(r.profitWin > P) lo = P; else hi = P;
       Ts = r.Ts;
     }
-    let equalizedP = P;
 
-    // Slider bias: 0 = max múltipla (menos cobertura), 100 = max cobertura (mais cobertura), 50 = igual
-    // Etapas travadas não são afetadas pelo slider nem pelo arredondamento — o stake real já foi apostado.
     const slider = parseInt($('balanceSlider').value);
-    const bias = (slider-50)/50; // -1..1
-    const scale = 1 + bias*0.6; // heuristic scaling of hedge totals
+    const bias = (slider-50)/50;
+    const scale = 1 + bias*0.6;
     const finalTs = Ts.map((t,i)=>{
       if(legs[i].locked) return {T:t.T};
       const scaled = t.T*scale;
       return {T: round50(scaled)};
     });
 
-    // recompute stake splits per etapa + scenario profits
-    let cumulative = S;
+    let cumulative = sunkStake;
     const detail = [];
     let worst = Infinity;
     legs.forEach((l,i)=>{
@@ -669,7 +775,7 @@
       } else {
         const X = l.locked ? (l.lockedX||0) : finalTs[i].T;
         const liability = X*(inf.h-1);
-        const profitLoseLeg = X*(1-commission) - cumulative + freebetValue; // seleção perde -> layer ganha
+        const profitLoseLeg = X*(1-commission) - cumulative + freebetValue;
         worst = Math.min(worst, profitLoseLeg);
         detail.push({i, T:X, liability, profit:profitLoseLeg, mode:'lay', l});
         cumulative += liability;
@@ -681,7 +787,6 @@
     const totalInvestido = S + detail.reduce((a,d)=> a + d.T, 0);
     const roi = totalInvestido>0 ? (worst/totalInvestido*100) : 0;
 
-    // render
     $('oOdd').textContent = oddMultipla.toFixed(2);
     $('oWin').textContent = fmt(profitWin);
     $('oWin').className = 'v num ' + (profitWin>=0?'pos':'neg');
@@ -695,7 +800,6 @@
     $('balanceTag').textContent = diff < tolerance ? 'Equilibrado' : (profitWin>worst?'Favorece múltipla':'Favorece cobertura');
     $('balanceTag').className = 'balance-tag ' + (diff < tolerance ? '' : 'off');
 
-    // etapa cards: update stake displays (só para etapas não travadas — travadas mostram input editável)
     const etapaDivs = document.querySelectorAll('.etapa');
     detail.forEach((d,idx)=>{
       const div = etapaDivs[idx];
@@ -716,7 +820,6 @@
 
     lastDetail = detail;
 
-    // etapa detail list
     const detWrap = $('etapaDetail');
     detWrap.innerHTML = detail.map((d,idx)=>{
       if(d.mode==='hedge'){
@@ -726,10 +829,9 @@
       }
     }).join('');
 
-    return {S, oddMultipla, profitWin, worst, totalInvestido, detail};
+    return {S, oddMultipla, profitWin, worst, totalInvestido, detail, stakeIsFreebet};
   }
 
-  // History -----------------------------------------------------
   const HKEY = 'duploGreenHistory';
   function loadHistory(){
     try{ return JSON.parse(localStorage.getItem(HKEY))||[]; }catch(e){ return []; }
@@ -793,7 +895,6 @@
     renderHistory();
   }
 
-  // Conexão com o painel (Supabase) -----------------------------------------------------
   const CONN_KEY = 'duploGreenSupaConn';
   function loadConn(){
     try{ return JSON.parse(localStorage.getItem(CONN_KEY))||{url:'',key:'',painelUrl:''}; }catch(e){ return {url:'',key:'',painelUrl:''}; }
@@ -840,8 +941,6 @@
     const freebetOn = $('freebetToggle').checked;
     const commissionGlobal = parseFloat($('commission').value)||0;
 
-    // monta uma "perna" por etapa, com tudo que a planilha precisa pra edição individual
-    // usa sempre o stake calculado (r.detail), travado ou não — trava só existe pra impedir recálculo, não pra habilitar o envio
     const pernas = state.etapas.map((et,i)=>{
       const d = r.detail[i];
       const base = {
@@ -872,7 +971,7 @@
       investimento_total: r.totalInvestido,
       freebet_usada: freebetOn,
       status: 'pendente',
-      detalhe: { etapas: state.etapas, slider: $('balanceSlider').value, pernas }
+      detalhe: { etapas: state.etapas, slider: $('balanceSlider').value, pernas, stake_e_freebet: $('stakeIsFreebet').classList.contains('active') }
     };
     statusEl.textContent = 'Enviando...';
     statusEl.style.color = 'var(--muted)';
@@ -893,8 +992,86 @@
     }
   };
 
-  // Wiring -----------------------------------------------------
+  const RESUMO_OBS_KEY = 'duploGreenResumoObs';
+
+  function openResumo(){
+    const r = compute();
+    const investmentIsFreebet = r.stakeIsFreebet;
+
+    $('resumoTitulo').textContent = ($('casaMultipla').value || 'Múltipla') + ' — ' + (state.etapas.length) + ' jogos';
+    $('rCasa').textContent = $('casaMultipla').value || 'N/A';
+    $('rValor').textContent = fmt(r.S);
+    $('rOddTotal').textContent = '@' + r.oddMultipla.toFixed(2).replace('.',',');
+    $('rTipo').textContent = investmentIsFreebet ? 'Freebet' : 'Normal';
+
+    $('rWin').textContent = fmt(r.profitWin);
+    $('rWin').style.color = r.profitWin>=0 ? 'var(--green)' : 'var(--red)';
+    $('rWorst').textContent = fmt(r.worst);
+    $('rWorst').style.color = r.worst>=0 ? 'var(--blue)' : 'var(--red)';
+    const roi = r.totalInvestido>0 ? (r.worst/r.totalInvestido*100) : 0;
+    $('rRoi').textContent = 'ROI: ' + (roi>=0?'+':'') + roi.toFixed(2) + '%';
+
+    const etWrap = $('resumoEtapas');
+    etWrap.innerHTML = r.detail.map((d,idx)=>{
+      const l = d.l;
+      const teams = (l.teamA||'') + (l.teamA||l.teamB?' x ':'') + (l.teamB||'');
+      if(d.mode==='hedge'){
+        return `
+          <div class="resumo-etapa">
+            <div class="resumo-etapa-head">
+              <div><span class="resumo-etapa-title">Etapa ${idx+1}</span> <span class="resumo-etapa-teams">${teams||'—'}</span></div>
+              <span class="resumo-etapa-mode">HEDGE / DUTCHING</span>
+            </div>
+            <div class="resumo-entries">
+              <div class="resumo-entry">Apostar em <span class="who">${l.out1.label}</span>${l.out1.casa?(' ['+l.out1.casa+']'):''} <span class="amt">${fmt(d.s1)}</span> <span style="color:var(--muted)">(@${(l.out1.odd||0).toFixed(2).replace('.',',')})</span></div>
+              <div class="resumo-entry">Apostar em <span class="who">${l.out2.label}</span>${l.out2.casa?(' ['+l.out2.casa+']'):''} <span class="amt">${fmt(d.s2)}</span> <span style="color:var(--muted)">(@${(l.out2.odd||0).toFixed(2).replace('.',',')})</span></div>
+            </div>
+            <div class="resumo-etapa-foot">Custo Total (Risco): <span class="v">${fmt(d.T)}</span></div>
+          </div>`;
+      } else {
+        return `
+          <div class="resumo-etapa">
+            <div class="resumo-etapa-head">
+              <div><span class="resumo-etapa-title">Etapa ${idx+1}</span> <span class="resumo-etapa-teams">${teams||'—'}</span></div>
+              <span class="resumo-etapa-mode lay">LAY (EXCHANGE)</span>
+            </div>
+            <div class="resumo-entries">
+              <div class="resumo-entry">Fazer LAY (Contra): <span class="who">${l.mainLabel}</span>${l.layCasa?(' ['+l.layCasa+']'):''} <span style="color:var(--muted)">(@${(l.layOdd||0).toFixed(2).replace('.',',')})</span></div>
+            </div>
+            <div class="resumo-etapa-foot">Apostar (Stake): <span class="v">${fmt(d.T)}</span> &nbsp;|&nbsp; Risco (Resp): <span class="v" style="color:var(--red)">${fmt(d.liability)}</span></div>
+          </div>`;
+      }
+    }).join('');
+
+    const freebetOn = $('freebetToggle').checked;
+    if(freebetOn){
+      const nominal = parseFloat($('freebetNominal').value)||0;
+      const pct = parseFloat($('freebetTarget').value)||0;
+      const casaBonus = $('freebetHouse').value || $('casaMultipla').value || 'N/A';
+      $('rBonus').textContent = fmt(nominal) + ' na ' + casaBonus + ' (' + pct + '% extração)';
+      $('resumoBonusBox').style.display = 'flex';
+    } else {
+      $('resumoBonusBox').style.display = 'none';
+    }
+
+    try{ $('resumoObs').value = localStorage.getItem(RESUMO_OBS_KEY) || ''; }catch(e){}
+
+    $('resumoOverlay').classList.add('show');
+  }
+
+  $('btnResumo').onclick = openResumo;
+  $('resumoClose').onclick = ()=> $('resumoOverlay').classList.remove('show');
+  $('resumoOverlay').onclick = (e)=>{ if(e.target.id==='resumoOverlay') $('resumoOverlay').classList.remove('show'); };
+  $('resumoObs').oninput = e=>{ try{ localStorage.setItem(RESUMO_OBS_KEY, e.target.value); }catch(err){} };
+
   $('numLegs').onchange = e=> { initEtapas(parseInt(e.target.value)); compute(); };
+  $('stakeIsFreebet').onclick = ()=>{
+    const btn = $('stakeIsFreebet');
+    btn.classList.toggle('active');
+    const active = btn.classList.contains('active');
+    $('investmentLabel').textContent = active ? 'Valor da freebet' : 'Investimento (múltipla)';
+    compute();
+  };
   $('investment').oninput = compute;
   $('commission').oninput = compute;
   $('arredondar').onchange = compute;
@@ -921,6 +1098,8 @@
     $('strategyName').value = '';
     $('investment').value = '';
     $('casaMultipla').value = '';
+    $('stakeIsFreebet').classList.remove('active');
+    $('investmentLabel').textContent = 'Investimento (múltipla)';
     $('numLegs').value = '2';
     $('commission').value = 0;
     $('arredondar').checked = true;
@@ -935,7 +1114,6 @@
     compute();
   };
 
-  // init
   initEtapas(2);
   renderHistory();
   initConnBox();
