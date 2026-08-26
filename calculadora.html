@@ -354,15 +354,17 @@ function solveOperation(){
   // Duplo Green:
   // - If a Lay exists, it is not applicable.
   // - With only Back selections, choose the TWO selections whose combined
-  //   gross return is highest, then subtract the total real investment.
+  //   net result is highest, then subtract the total real investment.
+  // - A freebet does NOT return its stake, so its contribution is only
+  //   the net profit: stake * (odd - 1).
   const hasLay=bets.some(b=>b.type==="lay");
   let duplo=0;
   let duploPair=[];
   if(!hasLay){
-    const grossBackReturns=bets.map((b,i)=>clean[i]*b.odd);
+    const backReturns=bets.map((b,i)=>b.freebet ? clean[i]*(b.odd-1) : clean[i]*b.odd);
     for(let i=0;i<bets.length;i++){
       for(let j=i+1;j<bets.length;j++){
-        const candidate=grossBackReturns[i]+grossBackReturns[j]-realInvestment;
+        const candidate=backReturns[i]+backReturns[j]-realInvestment;
         if(candidate>duplo){
           duplo=candidate;
           duploPair=[i,j];
