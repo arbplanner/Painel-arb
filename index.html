@@ -1263,7 +1263,7 @@
     renderFreebetsList();
     updateFreebetsBadge();
     renderSaldosCasas();
-    openFromUrlIfNeeded();
+    if(!consumeCalculatorImport()) openFromUrlIfNeeded();
   }
 
   function bankrollStats(name){
@@ -1531,6 +1531,57 @@
     if(!tag) return;
     if(n>0){ tag.style.display='inline-block'; tag.textContent = n; }
     else { tag.style.display='none'; }
+  }
+
+  // ---- Integração com a Calculadora Sure ----
+  // A Calculadora Sure salva temporariamente a operação em localStorage e abre
+  // o painel com ?calculatorImport=1. Depois do login, o painel recupera esse
+  // payload e abre o mesmo editor usado pelo botão 'Adicionar aposta'.
+  // Nenhum insert é feito nesta etapa: o botão Salvar do editor continua sendo
+  // o responsável pela gravação no Supabase.
+  function consumeCalculatorImport(){
+    const params = new URLSearchParams(location.search);
+    const shouldImport = params.get('calculatorImport') === '1';
+    if(!shouldImport) return false;
+
+    const raw = localStorage.getItem('duploGreenCalculatorImport');
+    if(!raw){
+      showToast('Nenhuma operação da Calculadora Sure foi encontrada.', 'warn');
+      params.delete('calculatorImport');
+      const cleanUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
+      history.replaceState(null, '', cleanUrl);
+      return false;
+    }
+
+    try{
+      const imported = JSON.parse(raw);
+      if(!imported || !imported.detalhe || !Array.isArray(imported.detalhe.pernas)){
+        throw new Error('Payload da Calculadora Sure inválido.');
+      }
+
+      const op = {
+        id: null,
+        data_operacao: imported.data_operacao || hojeBrasilia(),
+        casa: imported.casa || null,
+        nome: imported.nome || 'Operação 1',
+        investimento: imported.investimento ?? null,
+        status: imported.status || 'pendente',
+        bankroll: activeBankroll,
+        detalhe: imported.detalhe
+      };
+
+      openEditModal(op);
+      localStorage.removeItem('duploGreenCalculatorImport');
+
+      params.delete('calculatorImport');
+      const cleanUrl = location.pathname + (params.toString()?('?'+params.toString()):'');
+      history.replaceState(null, '', cleanUrl);
+      return true;
+    }catch(e){
+      console.error('Erro ao importar operação da Calculadora Sure:', e);
+      showToast('Não foi possível abrir a operação enviada pela Calculadora Sure.', 'err');
+      return false;
+    }
   }
 
   function openFromUrlIfNeeded(){
