@@ -48,6 +48,33 @@
     font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700;
     padding:14px 10px 6px;
   }
+  .sidebar-account{
+    margin-top:auto; padding-top:14px; margin-bottom:2px; border-top:1px solid var(--line);
+  }
+  .sidebar-account-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); font-weight:700;
+    padding:0 10px 7px;
+  }
+  .sidebar-account-row{
+    display:flex; align-items:center; gap:9px; padding:8px 10px 10px; min-width:0;
+  }
+  .sidebar-account-avatar{
+    width:30px; height:30px; border-radius:8px; flex:0 0 30px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--blue); font-weight:800; font-size:12px;
+  }
+  .sidebar-account-email{
+    min-width:0; flex:1; color:var(--text); font-size:11px; line-height:1.25;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .sidebar-logout{
+    width:100%; display:flex; align-items:center; justify-content:center; gap:7px;
+    padding:9px 10px; border-radius:7px; border:1px solid var(--line);
+    background:var(--panel-2); color:var(--muted); font-family:'Inter',sans-serif;
+    font-size:12px; font-weight:600; cursor:pointer; transition:all .2s ease;
+  }
+  .sidebar-logout:hover{color:var(--red); border-color:var(--red); background:var(--red-dim);}
+  .sidebar-logout svg{width:14px; height:14px;}
   .side-item{
     display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:7px; color:var(--muted);
     font-size:13px; font-weight:500; cursor:default; user-select:none; transition: all 0.2s ease;
@@ -540,6 +567,18 @@
     Configurações
     <span class="side-tag">em breve</span>
   </div>
+
+  <div class="sidebar-account">
+    <div class="sidebar-account-label">Conta</div>
+    <div class="sidebar-account-row">
+      <div class="sidebar-account-avatar">👤</div>
+      <div class="sidebar-account-email" id="authUserBar">—</div>
+    </div>
+    <button id="btnLogout" class="sidebar-logout" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 19V5a2 2 0 0 0-2-2h-5"/></svg>
+      Sair
+    </button>
+  </div>
 </aside>
 
 <div class="modal-overlay" id="connModal">
@@ -650,7 +689,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
     <span id="btnAdicionarApostaLabel">Adicionar aposta</span>
   </button>
-<span id="authUserBar"></span><button id="btnLogout" type="button">Sair</button></header>
+</header>
 
 <div class="wrap">
 <div id="viewDashboard">
