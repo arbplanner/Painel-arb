@@ -644,7 +644,7 @@ document.getElementById("sendBtn").addEventListener("click",()=>{
     }
   };
   localStorage.setItem("duploGreenCalculatorImport",JSON.stringify(imported));
-  window.open("https://arbplanner.github.io/Painel-arb/?calculatorImport=1","_blank");
+  window.open("./index.html?calculatorImport=1","_blank");
   status.textContent="Operação enviada ao painel. Confira e clique em Salvar.";
   status.style.color="var(--green)";
 });
