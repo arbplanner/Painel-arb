@@ -422,11 +422,34 @@
 
 </style>
 </head>
-<body>
+
+<body class="auth-locked">
+<div id="authGate">
+  <div class="auth-card">
+    <div class="auth-brand">ARBPLANNER</div>
+    <div class="auth-title">Acesso restrito</div>
+    <div class="auth-sub">Entre com seu e-mail e senha para acessar sua planilha.</div>
+
+    <form id="authForm" autocomplete="on">
+      <label for="authEmail">E-mail</label>
+      <input id="authEmail" type="email" autocomplete="username" placeholder="seu@email.com" required>
+
+      <label for="authPassword">Senha</label>
+      <input id="authPassword" type="password" autocomplete="current-password" placeholder="Sua senha" required>
+
+      <label class="auth-show"><input id="authShowPass" type="checkbox"> Mostrar senha</label>
+
+      <button class="auth-btn" id="authSubmit" type="submit">Entrar</button>
+      <div class="auth-error" id="authError"></div>
+      <div class="auth-loading" id="authLoading"></div>
+    </form>
+  </div>
+</div>
+
 
 <div id="toastWrap"></div>
 
-<aside class="sidebar">
+<div id="app"><aside class="sidebar">
   <div class="side-brand">ARBPLANNER</div>
   <div class="side-bankroll-tag" id="sideBankrollTag">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
@@ -443,10 +466,6 @@
   </div>
   <div class="side-group">Gestão</div>
   <a class="side-item" href="calculadora.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
-    <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
-    Calculadora Sure
-  </a>
-  <a class="side-item" href="calculadora-multipla.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="8" y2="10"/><line x1="12" y1="10" x2="12" y2="10"/><line x1="16" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="8" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="16" y1="18" x2="16" y2="18"/></svg></span>
     Calculadora Múltipla
   </a>
@@ -598,7 +617,7 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:14px; height:14px;"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
     <span id="btnAdicionarApostaLabel">Adicionar aposta</span>
   </button>
-</header>
+<span id="authUserBar"></span><button id="btnLogout" type="button">Sair</button></header>
 
 <div class="wrap">
 <div id="viewDashboard">
@@ -719,6 +738,88 @@
 </div>
 
 <datalist id="casaList"></datalist>
+
+
+<script>
+(function(){
+  const AUTH_URL = 'https://ypcikzktmrfqbpazhvug.supabase.co';
+  const AUTH_KEY = 'sb_publishable_T7TPMul94Wg0UexU7Ryc0g_c1vQ0zrG';
+
+  const authClient = window.supabase && supabase.createClient
+    ? supabase.createClient(AUTH_URL, AUTH_KEY)
+    : null;
+
+  const $a=id=>document.getElementById(id);
+  const gate=$a('authGate'), form=$a('authForm'), err=$a('authError'), loading=$a('authLoading'), submit=$a('authSubmit');
+  if(!authClient){
+    err.textContent='Não foi possível carregar o serviço de autenticação.';
+    return;
+  }
+
+  async function unlock(user){
+    if(!user) return false;
+    document.body.classList.remove('auth-locked');
+    document.body.classList.add('auth-ready');
+    if($a('authUserBar')) $a('authUserBar').textContent=user.email||'';
+    // Expose the authenticated client/session to the existing panel code.
+    window.__ARB_AUTH_CLIENT__ = authClient;
+    window.__ARB_AUTH_USER__ = user;
+    return true;
+  }
+
+  async function boot(){
+    loading.textContent='Verificando sessão...';
+    const {data:{session}}=await authClient.auth.getSession();
+    if(session?.user){ await unlock(session.user); loading.textContent=''; }
+    else { loading.textContent=''; document.body.classList.add('auth-locked'); }
+  }
+
+  form.addEventListener('submit', async ev=>{
+    ev.preventDefault();
+    const email=$a('authEmail').value.trim();
+    const password=$a('authPassword').value;
+    if(!email||!password) return;
+    err.textContent=''; loading.textContent='Entrando...'; submit.disabled=true;
+    const {data,error}=await authClient.auth.signInWithPassword({email,password});
+    submit.disabled=false;
+    if(error){
+      err.textContent='E-mail ou senha inválidos.';
+      loading.textContent='';
+      return;
+    }
+    loading.textContent='';
+    await unlock(data.user);
+    // The existing panel connection is still initialized normally.
+  });
+
+  if($a('authShowPass')){
+    $a('authShowPass').addEventListener('change', e=>{
+      $a('authPassword').type=e.target.checked?'text':'password';
+    });
+  }
+
+  if($a('btnLogout')){
+    $a('btnLogout').addEventListener('click', async ()=>{
+      await authClient.auth.signOut();
+      document.body.classList.remove('auth-ready');
+      document.body.classList.add('auth-locked');
+      $a('authPassword').value='';
+      err.textContent='';
+      loading.textContent='';
+    });
+  }
+
+  authClient.auth.onAuthStateChange(async (event, session)=>{
+    if(session?.user){ await unlock(session.user); }
+    else if(event==='SIGNED_OUT'){
+      document.body.classList.remove('auth-ready');
+      document.body.classList.add('auth-locked');
+    }
+  });
+
+  window.__ARB_AUTH_READY__ = boot();
+})();
+</script>
 
 <script>
 (function(){
@@ -1016,8 +1117,15 @@
   const ICON_X = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg>';
   const ICON_PEND = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 
+
+  const AUTH_DEFAULT_URL = 'https://ypcikzktmrfqbpazhvug.supabase.co';
+  const AUTH_DEFAULT_KEY = 'sb_publishable_T7TPMul94Wg0UexU7Ryc0g_c1vQ0zrG';
+
   function loadConn(){
-    try{ return JSON.parse(localStorage.getItem(CONN_KEY))||{url:'',key:''}; }catch(e){ return {url:'',key:''}; }
+    try{
+      const saved=JSON.parse(localStorage.getItem(CONN_KEY))||{};
+      return {url:saved.url||AUTH_DEFAULT_URL,key:saved.key||AUTH_DEFAULT_KEY};
+    }catch(e){ return {url:AUTH_DEFAULT_URL,key:AUTH_DEFAULT_KEY}; }
   }
   function saveConn(url,key){ localStorage.setItem(CONN_KEY, JSON.stringify({url,key})); }
 
@@ -1049,7 +1157,7 @@
       return;
     }
     saveConn(url,key);
-    client = supabase.createClient(url,key);
+    client = window.__ARB_AUTH_CLIENT__ || supabase.createClient(url,key);
     $('connStatus').textContent = 'Conectando...';
     $('connStatus').style.color = 'var(--muted)';
     await loadOps();
@@ -1096,6 +1204,9 @@
   };
 
   async function loadOps(){
+    if(window.__ARB_AUTH_READY__){ await window.__ARB_AUTH_READY__; }
+    const {data:{session}} = window.__ARB_AUTH_CLIENT__ ? await window.__ARB_AUTH_CLIENT__.auth.getSession() : {data:{session:null}};
+    if(!session) return;
     if(!client) return;
     const { data, error } = await client
       .from('operacoes')
@@ -3088,6 +3199,7 @@
         let detalhe = op.detalhe || {};
         detalhe.hora_operacao = txtOrNull('em_hora');
         const payload = {
+      owner_user_id: window.__ARB_AUTH_USER__?.id || null,
           data_operacao: txtOrNull('em_data'),
           casa: txtOrNull('em_casa'),
           nome: txtOrNull('em_nome'),
@@ -3446,5 +3558,5 @@
   initConn();
 })();
 </script>
-</body>
+</div></body>
 </html>
