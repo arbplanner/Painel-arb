@@ -479,13 +479,84 @@
 </style>
 
 <style id="clube365Styles">
-  .clube365-kpis{margin-bottom:14px;}
+  .clube365-kpis{margin-bottom:18px;}
   .clube365-panel{margin-bottom:20px;}
-  .clube365-progress-track{height:12px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;}
-  .clube365-progress-fill{height:100%;width:0%;background:var(--green);transition:width .2s ease;}
-  .clube365-status{font-size:11px;padding:5px 9px;border-radius:999px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);white-space:nowrap;}
+  .clube365-progress-wrap{
+    margin-top:18px;
+    padding:14px 14px 13px;
+    border:1px solid var(--line);
+    border-radius:11px;
+    background:linear-gradient(180deg,rgba(255,255,255,.018),rgba(255,255,255,.006));
+  }
+  .clube365-progress-top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:10px;
+  }
+  .clube365-progress-caption{
+    font-size:10.5px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.055em;
+    font-weight:700;
+  }
+  .clube365-progress-amount{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    color:var(--text);
+    font-weight:700;
+  }
+  .clube365-progress-track{
+    position:relative;
+    height:14px;
+    border-radius:999px;
+    background:#0d131a;
+    border:1px solid var(--line);
+    overflow:hidden;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.28);
+  }
+  .clube365-progress-track::after{
+    content:"";
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+    pointer-events:none;
+  }
+  .clube365-progress-fill{
+    height:100%;
+    width:0%;
+    border-radius:inherit;
+    background:linear-gradient(90deg,var(--green),#38e09a 55%,var(--blue));
+    box-shadow:0 0 12px rgba(54,224,154,.28);
+    transition:width .25s ease;
+  }
+  .clube365-status{
+    font-size:9.5px;
+    padding:3px 7px;
+    border-radius:999px;
+    color:var(--amber);
+    background:rgba(245,182,66,.07);
+    border:1px solid rgba(245,182,66,.24);
+    white-space:nowrap;
+    font-weight:700;
+    line-height:1.2;
+  }
+  .clube365-status.compact{display:inline-flex;align-items:center;}
   .clube365-status.done{color:var(--green);background:var(--green-dim);border-color:var(--green);}
   .clube365-row,.clube365-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:7px;}
+  .clube365-toggle{
+    margin-top:16px;padding:11px 0 10px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    color:var(--text);font-size:11px;font-weight:700;letter-spacing:.05em;cursor:pointer;
+    user-select:none;
+  }
+  .clube365-toggle:hover{color:var(--blue);}
+  .clube365-toggle-right{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:10px;font-weight:600;letter-spacing:0;}
+  .clube365-toggle:hover .clube365-toggle-right{color:var(--blue);}
+  #clube365ToggleArrow{font-size:14px;line-height:1;transform:translateY(-1px);}
   .clube365-row-main,.clube365-history-main{min-width:0;}
   .clube365-row-title,.clube365-history-title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .clube365-row-meta,.clube365-history-meta{margin-top:3px;color:var(--muted);font-size:10.5px;font-family:'JetBrains Mono',monospace;}
@@ -737,16 +808,29 @@
         <div class="panel-title">🎁 Clube 365</div>
         <div class="panel-sub" id="clube365Period">Semana atual</div>
       </div>
-      <div class="clube365-status" id="clube365Status">Em andamento</div>
     </div>
 
     <div class="clube365-progress-wrap">
-      <div class="clube365-progress-track"><div class="clube365-progress-fill" id="clube365Progress"></div></div>
+      <div class="clube365-progress-top">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="clube365-progress-caption">Progresso da meta</span>
+          <span class="clube365-status compact" id="clube365Status">Em andamento</span>
+        </div>
+        <span class="clube365-progress-amount" id="clube365ProgressAmount">R$ 252,50 / R$ 1.500,00</span>
+      </div>
+      <div class="clube365-progress-track">
+        <div class="clube365-progress-fill" id="clube365Progress"></div>
+      </div>
     </div>
 
-    <div class="divider-title">Apostas contabilizadas</div>
-    <div id="clube365Entries"></div>
-    <div id="clube365Empty" class="empty">Nenhuma aposta elegível encontrada nesta semana.</div>
+    <div class="clube365-toggle" id="clube365Toggle" role="button" tabindex="0" aria-expanded="false">
+      <span>APOSTAS CONTABILIZADAS</span>
+      <span class="clube365-toggle-right"><span id="clube365ToggleLabel">Mostrar</span><span id="clube365ToggleArrow">⌄</span></span>
+    </div>
+    <div id="clube365EntriesWrap" style="display:none;">
+      <div id="clube365Entries"></div>
+      <div id="clube365Empty" class="empty">Nenhuma aposta elegível encontrada nesta semana.</div>
+    </div>
 
     <div class="divider-title" style="margin-top:24px;">Histórico semanal</div>
     <div id="clube365History"></div>
@@ -1594,9 +1678,14 @@
     (ops||[]).forEach(op=>{
       const dt=clube365DateOnly(op.data_operacao);
       if(!dt || dt<week.start || dt>week.end) return;
-      clube365EntriesForOp(op).forEach(e=>result.push({...e,date:dt}));
+      const sortKey = String(op.criado_em || op.created_at || op.id || '');
+      clube365EntriesForOp(op).forEach((e,idx)=>result.push({...e,date:dt,sortKey:sortKey+'_'+String(999-idx).padStart(3,'0')}));
     });
-    result.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    result.sort((a,b)=>{
+      const d=String(b.date).localeCompare(String(a.date));
+      if(d) return d;
+      return String(b.sortKey||'').localeCompare(String(a.sortKey||''));
+    });
     return result;
   }
 
@@ -1639,6 +1728,7 @@
     $('clube365Week').textContent='Segunda '+clube365FmtDate(week.start)+' → Domingo '+clube365FmtDate(week.end);
     $('clube365Period').textContent='Segunda '+clube365FmtDate(week.start)+' → Domingo '+clube365FmtDate(week.end);
     $('clube365Progress').style.width=pct+'%';
+    $('clube365ProgressAmount').textContent=clube365Fmt(total)+' / '+clube365Fmt(CLUBE365_META);
     $('clube365Status').textContent=remaining>0?'Em andamento':'Meta atingida ✓';
     $('clube365Status').classList.toggle('done',remaining<=0);
 
@@ -1665,6 +1755,33 @@
     }).join('');
     $('clube365HistoryEmpty').style.display=history.length?'none':'block';
   }
+
+
+  // Toggle das apostas contabilizadas: fechado por padrão.
+  let clube365ApostasAbertas = false;
+  function setClube365ApostasOpen(open){
+    clube365ApostasAbertas = !!open;
+    const wrap = $('clube365EntriesWrap');
+    const toggle = $('clube365Toggle');
+    const label = $('clube365ToggleLabel');
+    const arrow = $('clube365ToggleArrow');
+    if(wrap) wrap.style.display = clube365ApostasAbertas ? 'block' : 'none';
+    if(toggle) toggle.setAttribute('aria-expanded', clube365ApostasAbertas ? 'true' : 'false');
+    if(label) label.textContent = clube365ApostasAbertas ? 'Recolher' : 'Mostrar';
+    if(arrow) arrow.textContent = clube365ApostasAbertas ? '⌃' : '⌄';
+  }
+  (function initClube365Toggle(){
+    const toggle = $('clube365Toggle');
+    if(!toggle) return;
+    toggle.onclick = ()=>setClube365ApostasOpen(!clube365ApostasAbertas);
+    toggle.onkeydown = e=>{
+      if(e.key==='Enter' || e.key===' '){
+        e.preventDefault();
+        setClube365ApostasOpen(!clube365ApostasAbertas);
+      }
+    };
+    setClube365ApostasOpen(false);
+  })();
 
   let currentView = 'dashboard';
   function showView(view){
