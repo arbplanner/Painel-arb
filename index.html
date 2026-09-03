@@ -477,6 +477,21 @@
   .auth-error{min-height:17px; margin-top:10px; color:#ff6b7a; font-size:11px;}
   .auth-loading{min-height:17px; margin-top:4px; color:#8792a6; font-size:11px;}
 </style>
+
+<style id="clube365Styles">
+  .clube365-kpis{margin-bottom:14px;}
+  .clube365-panel{margin-bottom:20px;}
+  .clube365-progress-track{height:12px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;}
+  .clube365-progress-fill{height:100%;width:0%;background:var(--green);transition:width .2s ease;}
+  .clube365-status{font-size:11px;padding:5px 9px;border-radius:999px;color:var(--muted);background:var(--panel-2);border:1px solid var(--line);white-space:nowrap;}
+  .clube365-status.done{color:var(--green);background:var(--green-dim);border-color:var(--green);}
+  .clube365-row,.clube365-history-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:7px;}
+  .clube365-row-main,.clube365-history-main{min-width:0;}
+  .clube365-row-title,.clube365-history-title{font-size:12.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .clube365-row-meta,.clube365-history-meta{margin-top:3px;color:var(--muted);font-size:10.5px;font-family:'JetBrains Mono',monospace;}
+  .clube365-row-value,.clube365-history-value{flex:0 0 auto;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:12.5px;}
+</style>
+
 </head>
 
 <body class="auth-locked">
@@ -529,6 +544,10 @@
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
     Calculadora Múltipla
   </a>
+  <div class="side-item" id="sideClube365Btn" style="cursor:pointer;">
+    <span class="side-icon"><span style="font-size:15px;">🎁</span></span>
+    Clube 365
+  </div>
   <a class="side-item" href="protecao-dg.html" target="_blank" style="cursor:pointer; text-decoration:none; color:inherit;">
     <span class="side-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
     Proteção DG
@@ -692,6 +711,49 @@
 </header>
 
 <div class="wrap">
+
+<div id="viewClube365" style="display:none;">
+  <div class="dashboard-kpis clube365-kpis">
+    <div class="kpi-card" style="--kpi-color:var(--green);">
+      <div class="kpi-top"><span class="kpi-label">Apostado elegível</span><span class="kpi-icon">🎁</span></div>
+      <div class="kpi-value" id="clube365Total">R$ 0,00</div>
+      <div class="kpi-sub" id="clube365Week">Semana atual</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--blue);">
+      <div class="kpi-top"><span class="kpi-label">Falta para R$ 1.500</span><span class="kpi-icon">🎯</span></div>
+      <div class="kpi-value" id="clube365Restante">R$ 1.500,00</div>
+      <div class="kpi-sub">Meta semanal</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--amber);">
+      <div class="kpi-top"><span class="kpi-label">Progresso</span><span class="kpi-icon">📈</span></div>
+      <div class="kpi-value" id="clube365Pct">0,0%</div>
+      <div class="kpi-sub">Segunda a domingo</div>
+    </div>
+  </div>
+
+  <div class="panel clube365-panel">
+    <div class="panel-head">
+      <div>
+        <div class="panel-title">🎁 Clube 365</div>
+        <div class="panel-sub" id="clube365Period">Semana atual</div>
+      </div>
+      <div class="clube365-status" id="clube365Status">Em andamento</div>
+    </div>
+
+    <div class="clube365-progress-wrap">
+      <div class="clube365-progress-track"><div class="clube365-progress-fill" id="clube365Progress"></div></div>
+    </div>
+
+    <div class="divider-title">Apostas contabilizadas</div>
+    <div id="clube365Entries"></div>
+    <div id="clube365Empty" class="empty">Nenhuma aposta elegível encontrada nesta semana.</div>
+
+    <div class="divider-title" style="margin-top:24px;">Histórico semanal</div>
+    <div id="clube365History"></div>
+    <div id="clube365HistoryEmpty" class="empty">Nenhuma semana encerrada registrada.</div>
+  </div>
+</div>
+
 <div id="viewDashboard">
   <div class="dashboard-kpis">
     <div class="kpi-card" style="--kpi-color:var(--green);">
@@ -1242,6 +1304,7 @@
   $('sideFreebetsBtn').onclick = ()=>{ renderFreebetsList(); showView('freebets'); };
   $('sideRankingBtn').onclick = ()=>{ renderRankCasas(); showView('ranking'); };
   $('sideSaldosBtn').onclick = ()=>{ renderSaldosCasas(); showView('saldos'); };
+  $('sideClube365Btn').onclick = ()=>{ renderClube365(); showView('clube365'); };
   $('btnNovoBankroll').onclick = ()=>{
     const nome = prompt('Nome do novo bankroll:');
     if(!nome) return;
@@ -1302,6 +1365,7 @@
     renderFreebetsList();
     updateFreebetsBadge();
     renderSaldosCasas();
+    renderClube365();
     if(!consumeCalculatorImport()) openFromUrlIfNeeded();
   }
 
@@ -1468,6 +1532,140 @@
     grid.querySelectorAll('[data-saldoedit]').forEach(btn=>btn.onclick=()=>openSaldoEdit(btn.dataset.saldoedit));
   }
 
+
+  // ---- Clube 365 ---------------------------------------------------------
+  const CLUBE365_META = 1500;
+  const CLUBE365_HISTORY_KEY = 'arbplanner_clube365_history_v1';
+
+  function clube365DateOnly(v){
+    const s=String(v||'').slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s)?s:null;
+  }
+  function clube365Week(dateStr){
+    const d=new Date((clube365DateOnly(dateStr)||hojeBrasilia())+'T00:00:00');
+    const day=d.getDay();
+    const offset=day===0?-6:1-day;
+    const mon=new Date(d); mon.setDate(d.getDate()+offset);
+    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    const iso=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`;
+    return {start:iso(mon),end:iso(sun)};
+  }
+  function clube365FmtDate(v){
+    const s=clube365DateOnly(v); if(!s)return v||'';
+    const [y,m,d]=s.split('-'); return `${d}/${m}/${y}`;
+  }
+  function clube365Fmt(v){
+    return 'R$ '+Number(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  }
+  function clube365IsBet365(v){
+    return String(v||'').trim().toLowerCase().replace(/\s+/g,'')==='bet365';
+  }
+  function clube365LoadHistory(){
+    try{const v=JSON.parse(localStorage.getItem(CLUBE365_HISTORY_KEY)||'[]');return Array.isArray(v)?v:[];}catch(e){return[];}
+  }
+  function clube365SaveHistory(v){
+    try{localStorage.setItem(CLUBE365_HISTORY_KEY,JSON.stringify(v));}catch(e){}
+  }
+
+  function clube365EntriesForOp(op){
+    if(!op || op.detalhe?.multipla?.freebet_independente) return [];
+    const entries=[];
+    const mainOdd=Number(op.detalhe?.multipla?.odd);
+    const mainStake=Number(op.investimento);
+
+    // Aposta principal: usa a casa da operação + odd combinada + investimento.
+    if(clube365IsBet365(op.casa) && Number.isFinite(mainOdd) && mainOdd>=2 && Number.isFinite(mainStake) && mainStake>0){
+      entries.push({fonte:'Aposta principal',evento:op.nome||'Operação',odd:mainOdd,stake:mainStake});
+    }
+
+    // Coberturas: conta apenas as pernas cuja plataforma é Bet365 e odd >= 2.
+    const pernas=Array.isArray(op.detalhe?.pernas)?op.detalhe.pernas:[];
+    pernas.forEach(p=>{
+      const odd=Number(p?.odd), stake=Number(p?.stake);
+      if(clube365IsBet365(p?.plataforma) && Number.isFinite(odd) && odd>=2 && Number.isFinite(stake) && stake>0){
+        entries.push({fonte:'Cobertura',evento:p?.evento||p?.rotulo||op.nome||'Operação',odd,stake});
+      }
+    });
+    return entries;
+  }
+
+  function clube365CurrentEntries(week){
+    const result=[];
+    (ops||[]).forEach(op=>{
+      const dt=clube365DateOnly(op.data_operacao);
+      if(!dt || dt<week.start || dt>week.end) return;
+      clube365EntriesForOp(op).forEach(e=>result.push({...e,date:dt}));
+    });
+    result.sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    return result;
+  }
+
+  function clube365ArchiveClosedWeeks(){
+    const current=clube365Week(hojeBrasilia());
+    const map=new Map(clube365LoadHistory().map(x=>[x.start,x]));
+    const buckets={};
+
+    (ops||[]).forEach(op=>{
+      const dt=clube365DateOnly(op.data_operacao);
+      if(!dt) return;
+      const w=clube365Week(dt);
+      if(w.end>=current.start) return;
+      if(!buckets[w.start]) buckets[w.start]={start:w.start,end:w.end,total:0};
+      buckets[w.start].total += clube365EntriesForOp(op).reduce((sum,e)=>sum+e.stake,0);
+    });
+
+    Object.values(buckets).forEach(w=>{
+      if(!map.has(w.start)) map.set(w.start,{start:w.start,end:w.end,total:Number(w.total.toFixed(2))});
+    });
+
+    const history=Array.from(map.values())
+      .sort((a,b)=>String(b.start).localeCompare(String(a.start)))
+      .slice(0,52);
+    clube365SaveHistory(history);
+    return history;
+  }
+
+  function renderClube365(){
+    if(!$('viewClube365')) return;
+    const week=clube365Week(hojeBrasilia());
+    const entries=clube365CurrentEntries(week);
+    const total=entries.reduce((s,e)=>s+e.stake,0);
+    const remaining=Math.max(0,CLUBE365_META-total);
+    const pct=Math.min(100,total/CLUBE365_META*100);
+
+    $('clube365Total').textContent=clube365Fmt(total);
+    $('clube365Restante').textContent=remaining>0?clube365Fmt(remaining):'Meta atingida ✓';
+    $('clube365Pct').textContent=pct.toFixed(1).replace('.',',')+'%';
+    $('clube365Week').textContent='Segunda '+clube365FmtDate(week.start)+' → Domingo '+clube365FmtDate(week.end);
+    $('clube365Period').textContent='Segunda '+clube365FmtDate(week.start)+' → Domingo '+clube365FmtDate(week.end);
+    $('clube365Progress').style.width=pct+'%';
+    $('clube365Status').textContent=remaining>0?'Em andamento':'Meta atingida ✓';
+    $('clube365Status').classList.toggle('done',remaining<=0);
+
+    $('clube365Entries').innerHTML=entries.map(e=>`
+      <div class="clube365-row">
+        <div class="clube365-row-main">
+          <div class="clube365-row-title">${String(e.evento).replace(/</g,'&lt;')}</div>
+          <div class="clube365-row-meta">${clube365FmtDate(e.date)} · ${e.fonte} · odd ${e.odd.toFixed(2)}</div>
+        </div>
+        <div class="clube365-row-value">${clube365Fmt(e.stake)}</div>
+      </div>`).join('');
+    $('clube365Empty').style.display=entries.length?'none':'block';
+
+    const history=clube365ArchiveClosedWeeks();
+    $('clube365History').innerHTML=history.map(h=>{
+      const p=Math.min(100,(Number(h.total||0)/CLUBE365_META)*100);
+      return `<div class="clube365-history-row">
+        <div class="clube365-history-main">
+          <div class="clube365-history-title">${clube365FmtDate(h.start)} → ${clube365FmtDate(h.end)}</div>
+          <div class="clube365-history-meta">${p>=100?'Meta atingida':'Meta não atingida'} · ${p.toFixed(1).replace('.',',')}%</div>
+        </div>
+        <div class="clube365-history-value">${clube365Fmt(h.total)}</div>
+      </div>`;
+    }).join('');
+    $('clube365HistoryEmpty').style.display=history.length?'none':'block';
+  }
+
   let currentView = 'dashboard';
   function showView(view){
     currentView = view;
@@ -1476,11 +1674,13 @@
     $('viewFreebets').style.display = view==='freebets' ? 'block' : 'none';
     $('viewRanking').style.display = view==='ranking' ? 'block' : 'none';
     $('viewSaldosCasas').style.display = view==='saldos' ? 'block' : 'none';
+    $('viewClube365').style.display = view==='clube365' ? 'block' : 'none';
     $('sideDashboardBtn').classList.toggle('active', view==='dashboard');
     $('sideBankrollsBtn').classList.toggle('active', view==='bankrolls');
     $('sideFreebetsBtn').classList.toggle('active', view==='freebets');
     $('sideRankingBtn').classList.toggle('active', view==='ranking');
     $('sideSaldosBtn').classList.toggle('active', view==='saldos');
+    $('sideClube365Btn').classList.toggle('active', view==='clube365');
     $('btnAdicionarApostaLabel').textContent = view==='freebets' ? 'Adicionar freebet' : 'Adicionar aposta';
   }
 
