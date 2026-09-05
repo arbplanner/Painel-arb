@@ -10,8 +10,48 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Fazer uma consulta simples no banco
+      - name: Diagnosticar conexão com Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
-          curl --fail --silent --show-error \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/operacoes?select=id&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_SECRET_KEY }}"
+          echo "=== Diagnóstico ==="
+
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "ERRO: SUPABASE_URL está vazia."
+            exit 1
+          else
+            echo "SUPABASE_URL: configurada"
+            echo "URL: $SUPABASE_URL"
+          fi
+
+          if [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "ERRO: SUPABASE_SECRET_KEY está vazia."
+            exit 1
+          else
+            echo "SUPABASE_SECRET_KEY: configurada"
+            echo "Começa com sb_secret_: $(echo "$SUPABASE_SECRET_KEY" | grep -q '^sb_secret_' && echo SIM || echo NAO)"
+            echo "Tamanho da chave: ${#SUPABASE_SECRET_KEY}"
+          fi
+
+          echo ""
+          echo "=== Testando requisição ==="
+
+          HTTP_CODE=$(curl -sS \
+            -o /tmp/supabase_response.txt \
+            -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/operacoes?select=id&limit=1" \
+            -H "apikey: $SUPABASE_SECRET_KEY")
+
+          echo "HTTP: $HTTP_CODE"
+          echo "Resposta do Supabase:"
+          cat /tmp/supabase_response.txt
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo ""
+            echo "SUCESSO: Supabase respondeu corretamente."
+          else
+            echo ""
+            echo "FALHA: Supabase recusou a requisição."
+            exit 1
+          fi
