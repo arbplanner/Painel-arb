@@ -476,6 +476,12 @@
   .auth-btn:disabled{opacity:.6; cursor:default;}
   .auth-error{min-height:17px; margin-top:10px; color:#ff6b7a; font-size:11px;}
   .auth-loading{min-height:17px; margin-top:4px; color:#8792a6; font-size:11px;}
+  .auth-forgot{display:block; margin:12px auto 0; padding:4px 6px; border:0; background:transparent; color:#8eb8ff; font:inherit; font-size:11.5px; cursor:pointer;}
+  .auth-forgot:hover{text-decoration:underline; color:#b4d0ff;}
+  .auth-recovery-note{font-size:11px; line-height:1.5; color:#a9b2c2; margin:8px 0 14px;}
+  .auth-recovery-done{padding:14px 0 2px; color:#a9b2c2; font-size:12px; line-height:1.55;}
+  .auth-recovery-done strong{display:block; color:#2fd487; font-size:15px; margin-bottom:6px;}
+  [hidden]{display:none !important;}
 </style>
 
 <style id="clube365Styles">
@@ -585,6 +591,26 @@
       <div class="auth-error" id="authError"></div>
       <div class="auth-loading" id="authLoading"></div>
     </form>
+
+    <button class="auth-forgot" id="authForgot" type="button">Esqueci minha senha</button>
+
+    <div id="authRecoveryPanel" hidden>
+      <div class="auth-title" style="font-size:20px;">Criar nova senha</div>
+      <div class="auth-recovery-note">Digite e confirme a nova senha para voltar a acessar sua planilha.</div>
+      <label for="authNewPassword">Nova senha</label>
+      <input id="authNewPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Pelo menos 8 caracteres">
+      <label for="authConfirmPassword">Confirmar nova senha</label>
+      <input id="authConfirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="Digite a senha novamente">
+      <button class="auth-btn" id="authUpdatePassword" type="button">Salvar nova senha</button>
+      <div class="auth-error" id="authRecoveryError"></div>
+      <div class="auth-loading" id="authRecoveryLoading"></div>
+    </div>
+
+    <div id="authRecoveryDone" class="auth-recovery-done" hidden>
+      <strong>Senha alterada com sucesso!</strong>
+      Sua nova senha já está cadastrada. Entre na planilha para continuar.
+      <button class="auth-btn" id="authContinue" type="button">Continuar para a planilha</button>
+    </div>
   </div>
 </div>
 
@@ -968,7 +994,12 @@
     : null;
 
   const $a=id=>document.getElementById(id);
-  const gate=$a('authGate'), form=$a('authForm'), err=$a('authError'), loading=$a('authLoading'), submit=$a('authSubmit');
+  const form=$a('authForm'), err=$a('authError'), loading=$a('authLoading'), submit=$a('authSubmit');
+  const forgot=$a('authForgot'), recoveryPanel=$a('authRecoveryPanel');
+  const recoveryDone=$a('authRecoveryDone');
+  const recoveryError=$a('authRecoveryError'), recoveryLoading=$a('authRecoveryLoading');
+  let passwordRecoveryActive = false;
+
   if(!authClient){
     err.textContent='Não foi possível carregar o serviço de autenticação.';
     return;
@@ -979,17 +1010,42 @@
     document.body.classList.remove('auth-locked');
     document.body.classList.add('auth-ready');
     if($a('authUserBar')) $a('authUserBar').textContent=user.email||'';
-    // Expose the authenticated client/session to the existing panel code.
     window.__ARB_AUTH_CLIENT__ = authClient;
     window.__ARB_AUTH_USER__ = user;
     return true;
   }
 
+  function showRecoveryForm(){
+    passwordRecoveryActive = true;
+    form.style.display='none';
+    forgot.hidden=true;
+    recoveryDone.hidden=true;
+    recoveryPanel.hidden=false;
+    err.textContent='';
+    loading.textContent='';
+    recoveryError.textContent='';
+    recoveryLoading.textContent='';
+    $a('authNewPassword').focus();
+  }
+
   async function boot(){
     loading.textContent='Verificando sessão...';
-    const {data:{session}}=await authClient.auth.getSession();
-    if(session?.user){ await unlock(session.user); loading.textContent=''; }
-    else { loading.textContent=''; document.body.classList.add('auth-locked'); }
+    const {data:{session},error}=await authClient.auth.getSession();
+    if(error){
+      loading.textContent='Não foi possível verificar a sessão. Atualize a página.';
+      return;
+    }
+    if(session?.user){
+      if(passwordRecoveryActive){
+        showRecoveryForm();
+      }else{
+        await unlock(session.user);
+        loading.textContent='';
+      }
+    }else{
+      loading.textContent='';
+      document.body.classList.add('auth-locked');
+    }
   }
 
   form.addEventListener('submit', async ev=>{
@@ -1007,7 +1063,77 @@
     }
     loading.textContent='';
     await unlock(data.user);
-    // The existing panel connection is still initialized normally.
+  });
+
+  forgot.addEventListener('click', async ()=>{
+    const email=$a('authEmail').value.trim();
+    err.textContent='';
+    loading.textContent='';
+    if(!email){
+      err.textContent='Digite seu e-mail no campo acima antes de solicitar a recuperação.';
+      $a('authEmail').focus();
+      return;
+    }
+
+    forgot.disabled=true;
+    loading.textContent='Enviando link de recuperação...';
+    const redirectTo=window.location.origin+window.location.pathname;
+    const {error}=await authClient.auth.resetPasswordForEmail(email,{redirectTo});
+    forgot.disabled=false;
+
+    if(error){
+      loading.textContent='';
+      err.textContent='Não foi possível enviar o e-mail. Confira a conexão e as URLs permitidas no Supabase.';
+      return;
+    }
+    loading.textContent='Se esse e-mail estiver cadastrado, você receberá um link para criar uma nova senha. Verifique também o spam.';
+  });
+
+  $a('authUpdatePassword').addEventListener('click', async ()=>{
+    const password=$a('authNewPassword').value;
+    const confirmation=$a('authConfirmPassword').value;
+    recoveryError.textContent='';
+    recoveryLoading.textContent='';
+
+    if(password.length<8){
+      recoveryError.textContent='A nova senha precisa ter pelo menos 8 caracteres.';
+      return;
+    }
+    if(password!==confirmation){
+      recoveryError.textContent='As senhas não coincidem.';
+      return;
+    }
+
+    const button=$a('authUpdatePassword');
+    button.disabled=true;
+    recoveryLoading.textContent='Salvando nova senha...';
+    const {error}=await authClient.auth.updateUser({password});
+    button.disabled=false;
+
+    if(error){
+      recoveryLoading.textContent='';
+      recoveryError.textContent='Não foi possível alterar a senha. O link pode ter expirado; solicite outro e-mail de recuperação.';
+      return;
+    }
+
+    recoveryLoading.textContent='';
+    recoveryPanel.hidden=true;
+    recoveryDone.hidden=false;
+    passwordRecoveryActive=false;
+  });
+
+  $a('authContinue').addEventListener('click', async ()=>{
+    const {data:{user},error}=await authClient.auth.getUser();
+    if(error||!user){
+      recoveryDone.hidden=true;
+      form.style.display='';
+      forgot.hidden=false;
+      err.textContent='Senha alterada. Entre novamente com seu e-mail e a nova senha.';
+      $a('authPassword').value='';
+      $a('authPassword').focus();
+      return;
+    }
+    await unlock(user);
   });
 
   if($a('authShowPass')){
@@ -1028,6 +1154,11 @@
   }
 
   authClient.auth.onAuthStateChange(async (event, session)=>{
+    if(event==='PASSWORD_RECOVERY'){
+      showRecoveryForm();
+      return;
+    }
+    if(passwordRecoveryActive) return;
     if(session?.user){ await unlock(session.user); }
     else if(event==='SIGNED_OUT'){
       document.body.classList.remove('auth-ready');
